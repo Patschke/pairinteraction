@@ -1,10 +1,10 @@
-# SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2024 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 # ruff: noqa: E402
+from __future__ import annotations
 
 import os
-from typing import Optional
 
 
 def _setup_dynamic_libaries() -> None:  # noqa: C901, PLR0915
@@ -142,12 +142,12 @@ _setup_dynamic_libaries()
 
 
 # ---------------------------------------------------------------------------------------
-# Configure pairinteraction for running tests with a local database if requested
+# Configure PairInteraction for running tests with a local database if requested
 # ---------------------------------------------------------------------------------------
-def _setup_test_mode(download_missing: bool = False, database_dir: Optional[str] = None) -> None:
+def _setup_test_mode(download_missing: bool = False, database_dir: str | None = None) -> None:
     from pathlib import Path
 
-    from pairinteraction._wrapped import Database
+    from pairinteraction.database import Database
 
     if database_dir is None:
         possible_dirs = [
@@ -192,7 +192,6 @@ del _setup_logging
 # Import pairinteraction
 # ---------------------------------------------------------------------------------------
 from pairinteraction import (
-    complex,  # noqa: A004
     perturbative,
     real,
     visualization,
@@ -201,17 +200,37 @@ from pairinteraction._backend import (
     VERSION_MAJOR as _VERSION_MAJOR,
     VERSION_MINOR as _VERSION_MINOR,
     VERSION_PATCH as _VERSION_PATCH,
+    run_unit_tests,
 )
+from pairinteraction.basis import BasisAtom, BasisPair
 from pairinteraction.custom_logging import configure_logging
-from pairinteraction.module_tests import run_module_tests
+from pairinteraction.database import Database
+from pairinteraction.diagonalization import diagonalize
+from pairinteraction.ket import KetAtom, KetPair
+from pairinteraction.perturbative import C3, C6, EffectiveSystemPair
+from pairinteraction.state import StateAtom, StatePair
+from pairinteraction.system import GreenTensor, SystemAtom, SystemPair
 from pairinteraction.units import ureg
 
 __all__ = [
-    "complex",
+    "C3",
+    "C6",
+    "BasisAtom",
+    "BasisPair",
+    "Database",
+    "EffectiveSystemPair",
+    "GreenTensor",
+    "KetAtom",
+    "KetPair",
+    "StateAtom",
+    "StatePair",
+    "SystemAtom",
+    "SystemPair",
     "configure_logging",
+    "diagonalize",
     "perturbative",
     "real",
-    "run_module_tests",
+    "run_unit_tests",
     "ureg",
     "visualization",
 ]

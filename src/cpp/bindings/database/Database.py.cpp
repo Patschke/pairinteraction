@@ -1,22 +1,12 @@
-// SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+// SPDX-FileCopyrightText: 2024 PairInteraction Developers
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "./Database.py.hpp"
 
-#include "pairinteraction/basis/BasisAtom.hpp"
 #include "pairinteraction/database/Database.hpp"
-#include "pairinteraction/enums/OperatorType.hpp"
-#include "pairinteraction/ket/KetAtom.hpp"
-#include "pairinteraction/operator/OperatorAtom.hpp"
 
-#include <nanobind/eigen/sparse.h>
 #include <nanobind/nanobind.h>
-#include <nanobind/stl/complex.h>
 #include <nanobind/stl/filesystem.h>
-#include <nanobind/stl/optional.h>
-#include <nanobind/stl/shared_ptr.h>
-#include <nanobind/stl/string.h>
-#include <nanobind/stl/vector.h>
 
 namespace nb = nanobind;
 using namespace nb::literals;
@@ -28,7 +18,10 @@ static void declare_database(nb::module_ &m) {
         .def(nb::init<bool>(), "download_missing"_a)
         .def(nb::init<std::filesystem::path>(), "database_dir"_a)
         .def(nb::init<bool, bool, std::filesystem::path>(), "download_missing"_a, "use_cache"_a,
-             "database_dir"_a);
+             "database_dir"_a)
+        .def("get_download_missing", &Database::get_download_missing)
+        .def("get_use_cache", &Database::get_use_cache)
+        .def("get_database_dir", &Database::get_database_dir);
 }
 
 void bind_database(nb::module_ &m) { declare_database(m); }

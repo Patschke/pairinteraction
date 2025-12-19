@@ -1,32 +1,34 @@
-Overview About pairinteraction's Architecture
-=============================================
+Overview of PairInteraction's Architecture
+==========================================
 
-This page provides an overview about how the pairinteraction software is structured and how it is working internally.
-The information is intended for developers and advanced users who want to understand the software's architecture in more
+This page provides an overview of how the PairInteraction software is structured and how it is working internally. The
+information is intended for developers and advanced users who want to understand the software's architecture in more
 detail.
 
 Code Structure
 --------------
 
-The pairinteraction software consists of three parts. Each part is implemented in a separate directory in the
-pairinteraction repository:
+The PairInteraction software consists of three parts. Each part is implemented in a separate directory in the
+PairInteraction repository:
 
-- :github:`src/cpp <tree/master/src/cpp>` - A high performance C++ backend for constructing and diagonalizing
+- :github:`src/cpp <tree/master/src/cpp>` - A high-performance C++ backend for constructing and diagonalizing
   Hamiltonians of systems of Rydberg atoms. Python bindings are created using nanobind_.
 - :github:`src/pairinteraction <tree/master/src/pairinteraction>` - A Python library that wraps the Python bindings,
   providing a Python interface for easily accessing the functionality in a pythonic way. Moreover, the Python library
-  adds additional functionality like the perturbative calculation of dispersion coefficients and effective Hamiltonians.
-  The Python classes that wrap the Python bindings are defined inside the private submodules
-  ``pairinteraction._wrapped`` and then aliased to the ``pairinteraction.real`` and ``pairinteraction.complex``
-  namespaces. The two submodules ``real`` and ``complex`` are completely identical in their functionality, but only
-  differ in the data type they use.
+  adds functionality like the perturbative calculation of dispersion coefficients and effective Hamiltonians. The python
+  classes like ``pairinteraction.BasisAtom`` and ``pairinteraction.SystemAtom`` are defined for the general case of
+  complex-valued data types (and thus also use the complex C++ bindings). To use only real-valued data types (which can
+  accelerate the calculations) one can use the classes from the ``pairinteraction.real`` submodule, e.g.
+  ``pairinteraction.real.BasisAtom`` and ``pairinteraction.real.SystemAtom``. To easily switch between complex and real
+  data types one can simply change the import statement from ``import pairinteraction as pi`` to ``import
+  pairinteraction.real as pi``.
 - :github:`src/pairinteraction_gui <tree/master/src/pairinteraction_gui>` - A graphical user interface (GUI) that allows
   users to perform common calculations without writing any code. The GUI is built on top of the Python library.
 
 Control Flow
 ------------
 
-Calculations with the pairinteraction software typically involve three steps that we describe in the following. Hereby,
+Calculations with the PairInteraction software typically involve three steps that we describe in the following. Hereby,
 the result of one step is used as input for the next step. Note that, regardless of whether you use the Python library
 or the GUI, the steps are always the same and eventually performed by the C++ backend:
 
@@ -34,17 +36,17 @@ or the GUI, the steps are always the same and eventually performed by the C++ ba
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 A user can specify a basis by restricting the energies and quantum numbers of the states to be included. If a basis for
-a single atom should be constructed, the pairinteraction software uses these restrictions internally to search its
+a single atom should be constructed, the PairInteraction software uses these restrictions internally to search its
 :ref:`database <database>` for states that match the criteria. If a basis for two atoms should be constructed, the
-pairinteraction software combines eigenstates of two single-atom Hamiltonians so that the resulting pair states match
+PairInteraction software combines eigenstates of two single-atom Hamiltonians so that the resulting pair states match
 the criteria.
 
 2. Constructing a Hamiltonian
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Independently on whether a Hamiltonian for one or two atoms should be constructed, the first step is always to obtain
+Independent of whether a Hamiltonian for one or two atoms should be constructed, the first step is always to obtain
 matrix elements of fundamental operators within a single-atom basis (for example, matrix elements for the dipole
-operators d0, d+, and d-). The matrix elements of the operators are received from pairinteraction's :ref:`database
+operators d0, d+, and d-). The matrix elements of the operators are received from PairInteraction's :ref:`database
 <database>` where they are indexed by the corresponding states. Next, the matrix elements of the fundamental operators
 are combined to matrix elements of more complex operators (for example, the operator describing the interaction with an
 electric field). For the multipole interaction between two atoms, tensor products of the single-atom operators are

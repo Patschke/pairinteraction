@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Pairinteraction Developers
+// SPDX-FileCopyrightText: 2025 PairInteraction Developers
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "pairinteraction/database/ParquetManager.hpp"
@@ -64,7 +64,7 @@ ParquetManager::ParquetManager(std::filesystem::path directory, const GitHubDown
     // If repo paths are provided, check the GitHub rate limit
     if (!repo_paths_.empty()) {
         auto rate_limit = downloader.get_rate_limit();
-        if (rate_limit.remaining <= 0) {
+        if (rate_limit.remaining == 0) {
             react_on_rate_limit_reached(rate_limit.reset_time);
         } else {
             SPDLOG_INFO("Remaining GitHub API requests: {}. Rate limit resets at {}.",
@@ -74,6 +74,11 @@ ParquetManager::ParquetManager(std::filesystem::path directory, const GitHubDown
 }
 
 void ParquetManager::scan_remote() {
+    // If repo_paths_ is empty, we have nothing to do
+    if (repo_paths_.empty()) {
+        return;
+    }
+
     remote_asset_info.clear();
 
     struct RepoDownload {
@@ -175,7 +180,7 @@ void ParquetManager::scan_remote() {
     if (!downloads.empty() && remote_asset_info.empty()) {
         throw std::runtime_error(
             "No compatible database tables were found in the remote repositories. Consider "
-            "upgrading pairinteraction to a newer version.");
+            "upgrading PairInteraction to a newer version.");
     }
 }
 
@@ -219,6 +224,13 @@ void ParquetManager::react_on_rate_limit_reached(std::time_t reset_time) {
 }
 
 void ParquetManager::update_local_asset(const std::string &key) {
+    assert(remote_asset_info.empty() == repo_paths_.empty());
+
+    // If remote_asset_info is empty, we have nothing to do
+    if (remote_asset_info.empty()) {
+        return;
+    }
+
     // Get remote version if available
     int remote_version = -1;
     auto remote_it = remote_asset_info.find(key);
@@ -258,7 +270,8 @@ void ParquetManager::update_local_asset(const std::string &key) {
                 remote_version, endpoint);
 
     auto result = downloader.download(endpoint, "", true).get();
-    if (result.status_code == 403 || result.status_code == 429) {
+    if ((result.status_code == 403 || result.status_code == 429) &&
+        result.rate_limit.remaining == 0) {
         react_on_rate_limit_reached(result.rate_limit.reset_time);
         return;
     }
@@ -374,11 +387,22 @@ std::string ParquetManager::get_path(const std::string &key, const std::string &
     // Ensure availability of the local table file
     auto asset_it = local_asset_info.find(key);
     if (asset_it == local_asset_info.end()) {
-        throw std::runtime_error("Table " + key + "_" + table + " not found.");
+        // If we do not know about any table that can be downloaded, downloading might be blocked.
+        // Otherwise, the species might be misspelled.
+        if (remote_asset_info.empty()) {
+            throw std::runtime_error(
+                "No tables found for species '" + key +
+                "'. Check whether you have allowed downloading missing tables, or download the "
+                "tables manually via `pairinteraction download " +
+                key + "`.");
+        }
+        throw std::runtime_error("No tables found for species '" + key +
+                                 "'. Check the spelling of the species.");
     }
     auto table_it = asset_it->second.paths.find(table);
     if (table_it == asset_it->second.paths.end()) {
-        throw std::runtime_error("Table " + key + "_" + table + " not found.");
+        throw std::runtime_error("No table '" + table + ".parquet' found for species '" + key +
+                                 "'. The tables for the species are incomplete.");
     }
 
     // Cache the local table in memory if requested

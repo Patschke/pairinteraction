@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2024 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 # ruff: noqa: INP001
@@ -11,15 +11,23 @@ import pairinteraction
 
 # -- Project information -----------------------------------------------------
 
-project = "pairinteraction"
-copyright = "2017, Pairinteraction Developers"  # noqa: A001
-author = "Pairinteraction Developers"
+project = "PairInteraction"
+copyright = "2017, PairInteraction Developers"  # noqa: A001
+author = "PairInteraction Developers"
 
 version = pairinteraction.__version__  # The short X.Y version, use via |version|
 release = version  # The full version, including alpha/beta/rc tags, use via |release|
 
 language = "en"
 
+# -- sphinx-polyversion -----------------------------------------------------
+if os.getenv("POLYVERSION_DATA"):
+    from sphinx_polyversion.api import load  # type: ignore [import-untyped]
+
+    # This adds html_context = {"revisions": [GitRef('main', ...), GitRef('v6.8.9', ...), ...], "current": ...}
+    html_context: dict[str, Any] = load()
+else:
+    html_context = {"current_version": f"dev (>= {pairinteraction.__version__})"}
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -35,7 +43,13 @@ extensions = [
     "sphinx_tabs.tabs",
 ]
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "_doctrees", "Thumbs.db", ".DS_Store"]  # Ignore these source files and folders
+exclude_patterns = [
+    "_build",
+    "_build_polyversion",
+    "_doctrees",
+    "Thumbs.db",
+    ".DS_Store",
+]  # Ignore these source files and folders
 source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",

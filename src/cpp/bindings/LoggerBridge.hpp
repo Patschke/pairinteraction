@@ -1,12 +1,13 @@
-// SPDX-FileCopyrightText: 2025 Pairinteraction Developers
+// SPDX-FileCopyrightText: 2025 PairInteraction Developers
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #pragma once
 
-#include <spdlog/details/null_mutex.h>
+#include <deque>
+#include <mutex>
 #include <spdlog/sinks/base_sink.h>
 #include <spdlog/spdlog.h>
-#include <tbb/concurrent_queue.h>
+#include <string>
 #include <vector>
 
 class LoggerBridge {
@@ -22,9 +23,10 @@ public:
     std::vector<LogEntry> get_pending_logs();
 
 private:
-    tbb::concurrent_queue<LogEntry> log_queue;
+    std::deque<LogEntry> log_queue;
+    std::mutex log_queue_mtx;
 
-    class QueueSink : public spdlog::sinks::base_sink<spdlog::details::null_mutex> {
+    class QueueSink : public spdlog::sinks::base_sink<std::mutex> {
     public:
         explicit QueueSink(LoggerBridge *parent);
 

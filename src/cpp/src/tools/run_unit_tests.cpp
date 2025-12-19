@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+// SPDX-FileCopyrightText: 2024 PairInteraction Developers
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #define DOCTEST_CONFIG_IMPLEMENT
@@ -26,11 +26,6 @@ namespace doctest {
 // SPDX-SnippetBegin
 // SPDX-FileCopyrightText: (c) 2016-2025 Viktor Kirilov, Sebastian Weber
 // SPDX-License-Identifier: MIT
-
-// NOLINTBEGIN(cppcoreguidelines-macro-usage)
-#define DOCTEST_LOCK_MUTEX(name)                                                                   \
-    std::lock_guard<std::mutex> DOCTEST_ANONYMOUS(DOCTEST_ANON_LOCK_)(name);
-// NOLINTEND(cppcoreguidelines-macro-usage)
 
 struct LoggingReporter : public ConsoleReporter {
     LoggingReporter(const ContextOptions &co) : ConsoleReporter(co) {}

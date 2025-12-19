@@ -8,7 +8,7 @@ Build process
 
 If you want to build only the C++ part and want to have more control over the build process, you can manually run the
 tasks that have been automatically executed by pip_ in the :ref:`automatic build <automatic>`. For this, you have to
-first install the python build dependencies for your :ref:`python environment <python_setup>` manually.
+first install the Python build dependencies for your :ref:`Python environment <python_setup>` manually.
 
 If you want to use mkl you should also run ``pip install mkl mkl-devel``.
 
@@ -36,20 +36,18 @@ Option            Effect                             Default
 
 .. [1] This mode implies building the debug version of the software.
 
-Moreover, executing the commands manually allows for running additional targets. For example, you can use the
-``doxygen`` target to build the C++ `doxygen documentation
-<https://www.pairinteraction.org/pairinteraction/doxygen/html/index.html>`_ by executing ``cmake --build . --target
-doxygen``. In contrast, if you use pip_ to build the software, only the default target for building the library is
-executed. In the following, a list of all available targets is provided. Note that some targets require specific build
-options to be enabled in addition to the default options, and have varying names depending on the platform.
+Moreover, executing the commands manually allows for running additional targets. For example, you can use the ``test``
+target to run the C++ tests by executing ``cmake --build . --target test``. In contrast, if you use pip_ to build the
+software, only the default target for building the library is executed. In the following, a list of all available
+targets is provided. Note that some targets require specific build options to be enabled in addition to the default
+options, and have varying names depending on the platform.
 
 ================ ====================== ==================================================================== ===========
 Target (Windows) Target (OS X and Unix) Task                                                                 Requirement
 ================ ====================== ==================================================================== ===========
 ``ALL_BUILD``    ``all``                Build the software (default target)
-``RUN_TESTS``    ``test``               Run the C++ tests (without any python tests, use the automatic build
+``RUN_TESTS``    ``test``               Run the C++ tests (without any Python tests, use the automatic build
                                         above for this)
-``DOXYGEN``      ``doxygen``            Build the Doxygen documentation in ``src/cpp/docs``
 ================ ====================== ==================================================================== ===========
 
 .. note::
@@ -123,7 +121,7 @@ directory. Note that ninja uses all available processors by default.
 
 **3. Using Compiler Caching**
 
-If you delete the build directory because you want to compile a different branch of pairinteraction or use different
+If you delete the build directory because you want to compile a different branch of PairInteraction or use different
 build options, the compilation has to start from scratch - as long as you do not use a compiler cache like `ccache`.
 Using this tool has the additional advantage that adding comments to the source code does not trigger a recompilation.
 It can be installed on many operating systems, e.g., on Ubuntu by running:

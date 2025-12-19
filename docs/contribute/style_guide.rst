@@ -5,7 +5,7 @@ This guide outlines the coding style and conventions used in the project.
 
 We highly recommend using ruff_ for formatting Python code and clang-format_ for C++ code to ensure consistency. The
 easiest way to use these tools is to integrate them as pre-commit hooks into your local repository. To do this, install
-the clang-format_ tool and the python package pre-commit_ and execute the following command in the root directory of
+the clang-format_ tool and the Python package pre-commit_ and execute the following command in the root directory of
 your repository:
 
 .. code-block:: bash
@@ -65,8 +65,13 @@ Python
 
 - Always use ``snake_case`` for folders and files. It is common to have multiple classes in one file if they are closely
   related.
-- The code that wraps the C++ backend is located in the private module ``src/pairinteraction/_wrapped/`` and made
-  available to the user via the public modules ``src/pairinteraction/real.py`` and ``src/pairinteraction/complex.py``.
+- The code that wraps the C++ backend is located in the modules ``src/pairinteraction/ket/``,
+  ``src/pairinteraction/basis/``, etc. and first purely written for the complex _backend and made available to the user
+  in the ``pairinteraction`` namespace. The real-data-type version of the classes is created by subclassing the complex
+  version and overwriting only the necessary class variables (see e.g. ``BasisAtomReal`` in
+  ``src/pairinteraction/basis/basis_atom.py`` for an example). These real-valued classes are then made available to the
+  user via the submodule ``pairinteraction.real``, where the classes are aliased to the class name without the ``Real``
+  suffix to make it easy for the user to switch between complex and real data types.
 - If you want to add a new feature purely in Python, add a new file to ``src/pairinteraction/`` (if the feature does not
   require much code) or create a new folder in ``src/pairinteraction/`` with multiple files (if the feature is more
   complex).
@@ -87,7 +92,7 @@ Python
 - List/Tuples of objects with a fixed length should typically be annotated as ``collections.abc.Sequence[Type]``; for a
   variable length use ``collections.abc.Iterable[Type]`` instead (see also `collections.abc abstract base classes
   <https://docs.python.org/3/library/collections.abc.html#collections-abstract-base-classes>`_).
-- Numpy arrays should be annotated as ``"pairinteraction.units.NDArray"`` (which is an alias for
+- NumPy arrays should be annotated as ``"pairinteraction.units.NDArray"`` (which is an alias for
   ``numpy.typing.NDArray[Any]``).
 
 **Return types** ``def my_func(...) -> ReturnType:``
@@ -96,7 +101,7 @@ Python
   the returned values.
 - Lists should be annotated as ``list[Type]``.
 - Tuples should be annotated as ``tuple[Type1, Type2]`` or ``tuple[Type1, ...]`` for a variable length.
-- Numpy arrays should be annotated as ``"pairinteraction.units.NDArray"`` (which is an alias for
+- NumPy arrays should be annotated as ``"pairinteraction.units.NDArray"`` (which is an alias for
   ``numpy.typing.NDArray[Any]``).
 - Pint objects should be annotated as ``"pairinteraction.units.PintFloat"``, ``"pairinteraction.units.PintArray"`` or
   ``"pairinteraction.units.PintSparse"`` for scalar, dense matrix and sparse matrix respectively. These are aliases for
@@ -105,12 +110,12 @@ Python
 Adding License Information
 --------------------------
 
-The pairinteraction software is licensed under LGPL v3. Code files should contain the following license header:
+The PairInteraction software is licensed under LGPL v3. Code files should contain the following license header:
 
 .. code-block::
 
-    SPDX-FileCopyrightText: <year of the creation of the file> Pairinteraction Developers
+    SPDX-FileCopyrightText: <year of the creation of the file> PairInteraction Developers
     SPDX-License-Identifier: LGPL-3.0-or-later
 
-If a third-party library is used *and* binary builds of the pairinteraction software include it, license information for
+If a third-party library is used *and* binary builds of the PairInteraction software include it, license information for
 the library should be added to the :github:`LICENSES-THIRD-PARTY <tree/master/LICENSES-THIRD-PARTY>` directory.

@@ -9,16 +9,16 @@ such as a large size, long lifetimes, and strong interactions with other Rydberg
 properties of the Rydberg atoms can be well-controlled, and the atoms can be trapped individually in so-called optical
 tweezers that can be arranged in arbitrary structures. This makes Rydberg atoms a versatile tool for studying quantum
 phenomena in fundamental research and for applications in quantum technologies. For example, their strong sensitivity
-towards fields are used for quantum sensors. The strong interaction between Rydberg atoms are applied for quantum
-simulators and to build quantum gates for quantum computing. While quantum computing platforms based on Rydberg atoms
+towards fields is used for quantum sensors. The strong interaction between Rydberg atoms is applied for quantum
+simulators and to build quantum gates for quantum computing. Although quantum computing platforms based on Rydberg atoms
 are still a rather young technology, they already achieve fidelities on par with other leading quantum computing
 platforms, and offer the potential for scalable architectures.
 
-For what is the pairinteraction software?
+For what is the PairInteraction software?
 -----------------------------------------
 
 To use Rydberg atoms, it is necessary to understand the interactions between them and how they can be tuned to fulfill
-the needs of the desired application. The pairinteraction software package provides a Python library and graphical user
+the needs of the desired application. The PairInteraction software package provides a Python library and graphical user
 interface to calculate the interaction potentials between Rydberg atoms as well as single-atom properties such as
 lifetimes, energies, and energy shifts by electric and magnetic fields. To achieve accurate results, state-of-the-art
 approaches are used (such as multi-channel quantum defect theory for atoms with two valence electrons and Green tensor
@@ -42,7 +42,7 @@ accurate calculation of interactions between divalent atoms with complex level s
 of high electric and magnetic fields.
 
 To get started with the software, visit the user guide of our documentation. It contains :ref:`tutorials <tutorials>`
-such as a quick start guide, jupyter notebooks with example applications, and an :ref:`API reference <api_reference>`.
+such as a quick start guide, Jupyter notebooks with example applications, and an :ref:`API reference <api_reference>`.
 
 Can I contribute to the software?
 ---------------------------------

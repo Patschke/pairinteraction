@@ -1,14 +1,14 @@
-# SPDX-FileCopyrightText: 2025 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2025 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
+from __future__ import annotations
 
 import logging
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import nbformat
 from nbconvert import PythonExporter
-from PySide6.QtGui import QHideEvent, QShowEvent
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -19,12 +19,17 @@ from PySide6.QtWidgets import (
 )
 
 import pairinteraction
-from pairinteraction_gui.calculate.calculate_base import Parameters, Results
 from pairinteraction_gui.config import BaseConfig
-from pairinteraction_gui.config.ket_config import KetConfig
-from pairinteraction_gui.plotwidget.plotwidget import PlotEnergies, PlotWidget
+from pairinteraction_gui.plotwidget.plotwidget import PlotEnergies
 from pairinteraction_gui.qobjects import NamedStackedWidget, WidgetV, show_status_tip
 from pairinteraction_gui.worker import MultiProcessWorker, MultiThreadWorker
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QHideEvent, QShowEvent
+
+    from pairinteraction_gui.calculate.calculate_base import Parameters, Results
+    from pairinteraction_gui.config.ket_config import KetConfig
+    from pairinteraction_gui.plotwidget.plotwidget import PlotWidget
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +42,7 @@ class BasePage(WidgetV):
 
     title: str
     tooltip: str
-    icon_path: Optional[Path] = None
+    icon_path: Path | None = None
 
     def showEvent(self, event: QShowEvent) -> None:
         """Show event."""
@@ -59,6 +64,9 @@ class SimulationPage(BasePage):
         for attr in self.__dict__.values():
             if isinstance(attr, BaseConfig):
                 self.toolbox.addItem(attr, attr.title)
+
+        for i, species_combo in enumerate(self.ket_config.species_combo_list):
+            self.ket_config.signal_species_changed.emit(i, species_combo.currentText())
 
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
@@ -159,18 +167,9 @@ class CalculationPage(SimulationPage):
         raise NotImplementedError("Subclasses must implement this method")
 
     def update_plot(self, parameters: Parameters[Any], results: Results) -> None:
-        energies = results.energies
-        overlaps = results.ket_overlaps
-
-        x_values = parameters.get_x_values()
-        x_label = parameters.get_x_label()
-
-        self.plotwidget.plot(x_values, energies, overlaps, x_label)
-
-        self.plotwidget.add_cursor(x_values, energies, results.state_labels)
-
+        self.plotwidget.plot(parameters, results)
+        self.plotwidget.add_cursor(parameters, results)
         self.plotwidget.canvas.draw()
-        self._plot_finished = False
 
     def export_png(self) -> None:
         """Export the current plot as a PNG file."""
@@ -185,31 +184,29 @@ class CalculationPage(SimulationPage):
             )
             logger.info("Plot saved as %s", filename)
 
+    def _create_python_code(self) -> str:
+        template_path = Path(__file__).parent.parent / "export_templates" / self._get_export_notebook_template_name()
+        with Path(template_path).open() as f:
+            notebook = nbformat.read(f, as_version=4)
+
+        exporter = PythonExporter(exclude_output_prompt=True, exclude_input_prompt=True)
+        content, _ = exporter.from_notebook_node(notebook)
+
+        replacements = self._get_export_replacements()
+        for key, value in replacements.items():
+            content = content.replace(key, str(value))
+
+        return content
+
     def export_python(self) -> None:
         """Export the current calculation as a Python script."""
         logger.debug("Exporting results as Python script...")
-
         filename, _ = QFileDialog.getSaveFileName(self, "Save Python Script", "", "Python Files (*.py)")
-
         if filename:
             filename = filename.removesuffix(".py") + ".py"
-
-            template_path = (
-                Path(__file__).parent.parent / "export_templates" / self._get_export_notebook_template_name()
-            )
-            with Path(template_path).open() as f:
-                notebook = nbformat.read(f, as_version=4)
-
-            exporter = PythonExporter(exclude_output_prompt=True, exclude_input_prompt=True)
-            content, _ = exporter.from_notebook_node(notebook)
-
-            replacements = self._get_export_replacements()
-            for key, value in replacements.items():
-                content = content.replace(key, str(value))
-
+            content = self._create_python_code()
             with Path(filename).open("w") as f:
                 f.write(content)
-
             logger.info("Python script saved as %s", filename)
 
     def export_notebook(self) -> None:

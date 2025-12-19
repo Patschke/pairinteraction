@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+// SPDX-FileCopyrightText: 2024 PairInteraction Developers
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "pairinteraction/basis/BasisPair.hpp"
@@ -12,6 +12,7 @@
 #include "pairinteraction/utils/Range.hpp"
 #include "pairinteraction/utils/tensor.hpp"
 
+#include <cassert>
 #include <memory>
 #include <oneapi/tbb.h>
 #include <vector>
@@ -46,7 +47,7 @@ std::shared_ptr<const BasisAtom<Scalar>> BasisPair<Scalar>::get_basis2() const {
 
 template <typename Scalar>
 int BasisPair<Scalar>::get_ket_index_from_tuple(size_t state_index1, size_t state_index2) const {
-    if (state_indices_to_ket_index.count({state_index1, state_index2}) == 0) {
+    if (!state_indices_to_ket_index.contains({state_index1, state_index2})) {
         return -1;
     }
     return state_indices_to_ket_index.at({state_index1, state_index2});

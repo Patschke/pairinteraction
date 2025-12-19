@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2025 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 import logging
@@ -13,7 +13,7 @@ from pairinteraction_gui.plotwidget.plotwidget import PlotWidget
 from pairinteraction_gui.qobjects import show_status_tip
 
 if TYPE_CHECKING:
-    import pairinteraction.real as pi
+    import pairinteraction as pi
 
 logger = logging.getLogger(__name__)
 

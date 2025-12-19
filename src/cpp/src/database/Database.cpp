@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+// SPDX-FileCopyrightText: 2024 PairInteraction Developers
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "pairinteraction/database/Database.hpp"
@@ -27,6 +27,28 @@
 #include <system_error>
 
 namespace pairinteraction {
+
+void ensure_consistent_quantum_numbers(bool is_j_total_momentum, double quantum_number_f,
+                                       double quantum_number_m, double quantum_number_j_exp) {
+    if (is_j_total_momentum && quantum_number_f != quantum_number_j_exp) {
+        throw std::runtime_error("If j is the total momentum, f must be equal to j.");
+    }
+    if (2 * quantum_number_m != std::rint(2 * quantum_number_m)) {
+        throw std::runtime_error("The quantum number m must be an integer or half-integer.");
+    }
+    if (2 * quantum_number_f != std::rint(2 * quantum_number_f)) {
+        throw std::runtime_error("The quantum number f must be an integer or half-integer.");
+    }
+    if (quantum_number_f + quantum_number_m != std::rint(quantum_number_f + quantum_number_m)) {
+        throw std::invalid_argument(
+            "The quantum numbers f and m must be both either integers or half-integers.");
+    }
+    if (std::abs(quantum_number_m) > quantum_number_f) {
+        throw std::invalid_argument(
+            "The absolute value of the quantum number m must be less than or equal to f.");
+    }
+}
+
 Database::Database() : Database(default_download_missing) {}
 
 Database::Database(bool download_missing)
@@ -433,23 +455,9 @@ std::shared_ptr<const KetAtom> Database::get_ket(const std::string &species,
     auto result_underspecified_channel_contribution =
         duckdb::FlatVector::GetData<double>(chunk->data[20])[0];
 
-    // Check the quantum number m
-    if (std::abs(result_quantum_number_m) > result_quantum_number_f) {
-        throw std::invalid_argument(
-            "The absolute value of the quantum number m must be less than or equal to f.");
-    }
-    if (result_quantum_number_f + result_quantum_number_m !=
-        std::rint(result_quantum_number_f + result_quantum_number_m)) {
-        throw std::invalid_argument(
-            "The quantum numbers f and m must be both either integers or half-integers.");
-    }
-
-#ifndef NDEBUG
     // Check database consistency
-    if (result_is_j_total_momentum && result_quantum_number_f != result_quantum_number_j_exp) {
-        throw std::runtime_error("If j is the total momentum, f must be equal to j.");
-    }
-#endif
+    ensure_consistent_quantum_numbers(result_is_j_total_momentum, result_quantum_number_f,
+                                      result_quantum_number_m, result_quantum_number_j_exp);
 
     return std::make_shared<const KetAtom>(
         typename KetAtom::Private(), result_energy, result_quantum_number_f,
@@ -842,9 +850,9 @@ Database::get_basis(const std::string &species, const AtomDescriptionByRanges &d
     // Construct the states
     std::vector<std::shared_ptr<const KetAtom>> kets;
     kets.reserve(result->RowCount());
-#ifndef NDEBUG
     double last_energy = std::numeric_limits<double>::lowest();
-#endif
+    bool is_calculated_with_mqdt = false;
+    double min_quantum_number_nu = std::numeric_limits<double>::max();
 
     for (auto chunk = result->Fetch(); chunk; chunk = result->Fetch()) {
 
@@ -874,17 +882,17 @@ Database::get_basis(const std::string &species, const AtomDescriptionByRanges &d
 
         for (size_t i = 0; i < chunk->size(); i++) {
 
-#ifndef NDEBUG
             // Check database consistency
-            if (chunk_is_j_total_momentum[i] &&
-                chunk_quantum_number_f[i] != chunk_quantum_number_j_exp[i]) {
-                throw std::runtime_error("If j is the total momentum, f must be equal to j.");
-            }
+            ensure_consistent_quantum_numbers(chunk_is_j_total_momentum[i],
+                                              chunk_quantum_number_f[i], chunk_quantum_number_m[i],
+                                              chunk_quantum_number_j_exp[i]);
             if (chunk_energy[i] < last_energy) {
                 throw std::runtime_error("The states are not sorted by energy.");
             }
             last_energy = chunk_energy[i];
-#endif
+
+            is_calculated_with_mqdt |= chunk_is_calculated_with_mqdt[i];
+            min_quantum_number_nu = std::min(min_quantum_number_nu, chunk_quantum_number_nu[i]);
 
             // Append a new state
             kets.push_back(std::make_shared<const KetAtom>(
@@ -899,6 +907,21 @@ Database::get_basis(const std::string &species, const AtomDescriptionByRanges &d
                 chunk_quantum_number_j_ryd_exp[i], chunk_quantum_number_j_ryd_std[i],
                 chunk_is_j_total_momentum[i], chunk_is_calculated_with_mqdt[i],
                 chunk_underspecified_channel_contribution[i], *this, chunk_id[i]));
+        }
+    }
+
+    // Show a warning for low-lying states
+    if (min_quantum_number_nu < 25) {
+        if (is_calculated_with_mqdt) {
+            SPDLOG_WARN("The multi-channel quantum defect theory might produce inaccurate results "
+                        "for effective principal quantum numbers < 25. The models get increasingly "
+                        "unreliable for small principal quantum numbers, leading to inaccurate "
+                        "matrix elements and energies. Due to missing data, even some states might "
+                        "not be present.");
+        } else {
+            SPDLOG_WARN(
+                "The single-channel quantum defect theory can be inaccurate for effective "
+                "principal quantum numbers < 25. This can lead to inaccurate matrix elements.");
         }
     }
 
@@ -1159,7 +1182,7 @@ struct database_dir_noexcept : std::filesystem::path {
     explicit database_dir_noexcept() noexcept try : std
         ::filesystem::path(paths::get_cache_directory() / "database") {}
     catch (...) {
-        SPDLOG_ERROR("Error getting the pairinteraction cache directory.");
+        SPDLOG_ERROR("Error getting the PairInteraction cache directory.");
         std::terminate();
     }
 };

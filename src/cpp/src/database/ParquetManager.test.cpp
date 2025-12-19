@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 Pairinteraction Developers
+// SPDX-FileCopyrightText: 2025 PairInteraction Developers
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "pairinteraction/database/ParquetManager.hpp"
@@ -78,7 +78,9 @@ TEST_CASE("ParquetManager functionality with mocked downloader") {
         manager.scan_remote();
 
         CHECK_THROWS_WITH_AS(manager.get_path("misc", "missing_table"),
-                             "Table misc_missing_table not found.", std::runtime_error);
+                             "No table 'missing_table.parquet' found for species 'misc'. The "
+                             "tables for the species are incomplete.",
+                             std::runtime_error);
     }
 
     SUBCASE("Check version parsing") {
@@ -109,7 +111,7 @@ TEST_CASE("ParquetManager functionality with mocked downloader") {
     std::filesystem::remove_all(test_dir);
 }
 
-DOCTEST_TEST_CASE("ParquetManager functionality with github downloader") {
+DOCTEST_TEST_CASE("ParquetManager functionality with GitHub downloader") {
     if (!Database::get_global_instance().get_download_missing()) {
         DOCTEST_MESSAGE("Skipping test because download_missing is false.");
         return;

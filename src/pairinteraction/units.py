@@ -1,8 +1,9 @@
-# SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2024 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
+from __future__ import annotations
 
 from collections.abc import Collection, Iterable
-from typing import TYPE_CHECKING, Any, Generic, Literal, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, Union
 
 import numpy as np
 import pint
@@ -46,6 +47,7 @@ Dimension = Literal[
     "c3",
     "c6",
     "green_tensor_00",
+    "identity",
     "arbitrary",
     "zero",
 ]
@@ -71,10 +73,11 @@ _CommonUnits: dict[Dimension, str] = {
     "c3": "hartree * bohr^3",  # 1 hartree * bohr^3 = 1 bohr ** 3 * m_e / au_time ** 2
     "c6": "hartree * bohr^6",  # 1 hartree * bohr^6 = 1 bohr ** 6 * m_e / au_time ** 2
     "green_tensor_00": "hartree / e^2",  # unit for green tensor with kappa1 = kappa2 = 0
+    "identity": "",  # 1 dimensionless
     "arbitrary": "",  # 1 dimensionless
     "zero": "",  # 1 dimensionless
 }
-AtomicUnits: dict[Dimension, "PlainUnit"] = {
+AtomicUnits: dict[Dimension, PlainUnit] = {
     k: ureg.Quantity(1, unit).to_base_units().units for k, unit in _CommonUnits.items()
 }
 
@@ -117,10 +120,10 @@ class QuantityAbstract(Generic[ValueTypeLike, ValueType]):
 
     @classmethod
     def from_pint(
-        cls: "type[Self]",
+        cls: type[Self],
         value: PlainQuantity[ValueType],  # type: ignore [type-var]
         dimension: DimensionLike,
-    ) -> "Self":
+    ) -> Self:
         """Initialize a Quantity from a ureg.Quantity."""
         if isinstance(value, ureg.Quantity):
             return cls(value, dimension)
@@ -132,11 +135,11 @@ class QuantityAbstract(Generic[ValueTypeLike, ValueType]):
 
     @classmethod
     def from_unit(
-        cls: "type[Self]",
+        cls: type[Self],
         value: ValueTypeLike,
         unit: str,
         dimension: DimensionLike,
-    ) -> "Self":
+    ) -> Self:
         """Initialize a Quantity from a value and a unit given as string."""
         if isinstance(value, PlainQuantity):
             raise TypeError("method from_unit: value must be a scalar or an array, not a pint.Quantity")
@@ -144,21 +147,21 @@ class QuantityAbstract(Generic[ValueTypeLike, ValueType]):
 
     @classmethod
     def from_au(
-        cls: "type[Self]",
+        cls: type[Self],
         value: ValueTypeLike,
         dimension: DimensionLike,
-    ) -> "Self":
+    ) -> Self:
         """Initialize a Quantity from a value in atomic units (a.u.) and a (list of) dimension(s)."""
         unit = cls.get_atomic_unit(dimension)
         return cls(ureg.Quantity(value, unit), dimension)
 
     @classmethod
     def from_pint_or_unit(
-        cls: "type[Self]",
-        value: Union[PlainQuantity[ValueType], ValueTypeLike],  # type: ignore [type-var]
-        unit: Optional[str],
+        cls: type[Self],
+        value: PlainQuantity[ValueType] | ValueTypeLike,  # type: ignore [type-var]
+        unit: str | None,
         dimension: DimensionLike,
-    ) -> "Self":
+    ) -> Self:
         if unit is None:
             if isinstance(value, PlainQuantity):
                 return cls.from_pint(value, dimension)
@@ -196,7 +199,7 @@ class QuantityAbstract(Generic[ValueTypeLike, ValueType]):
         value = self.to_pint().to_base_units()
         return value.magnitude
 
-    def to_pint_or_unit(self, unit: Optional[str]) -> Union[ValueType, PlainQuantity[ValueType]]:  # type: ignore [type-var]
+    def to_pint_or_unit(self, unit: str | None) -> ValueType | PlainQuantity[ValueType]:  # type: ignore [type-var]
         if unit is None:
             return self.to_pint()
         return self.to_unit(unit)
@@ -204,8 +207,8 @@ class QuantityAbstract(Generic[ValueTypeLike, ValueType]):
     @classmethod
     def convert_user_to_au(
         cls,
-        value: Union[PlainQuantity[ValueType], ValueTypeLike],  # type: ignore [type-var]
-        unit: Optional[str],
+        value: PlainQuantity[ValueType] | ValueTypeLike,  # type: ignore [type-var]
+        unit: str | None,
         dimension: DimensionLike,
     ) -> ValueType:
         return cls.from_pint_or_unit(value, unit, dimension).to_au()
@@ -213,8 +216,8 @@ class QuantityAbstract(Generic[ValueTypeLike, ValueType]):
     @classmethod
     def convert_user_to_pint(
         cls,
-        value: Union[PlainQuantity[ValueType], ValueTypeLike],  # type: ignore [type-var]
-        unit: Optional[str],
+        value: PlainQuantity[ValueType] | ValueTypeLike,  # type: ignore [type-var]
+        unit: str | None,
         dimension: DimensionLike,
     ) -> PlainQuantity[ValueType]:  # type: ignore [type-var]
         return cls.from_pint_or_unit(value, unit, dimension).to_pint()
@@ -224,8 +227,8 @@ class QuantityAbstract(Generic[ValueTypeLike, ValueType]):
         cls,
         values_au: ValueTypeLike,
         dimension: DimensionLike,
-        unit: Optional[str],
-    ) -> Union[ValueType, PlainQuantity[ValueType]]:  # type: ignore [type-var]
+        unit: str | None,
+    ) -> ValueType | PlainQuantity[ValueType]:  # type: ignore [type-var]
         return cls.from_au(values_au, dimension).to_pint_or_unit(unit)
 
     @classmethod
@@ -233,8 +236,8 @@ class QuantityAbstract(Generic[ValueTypeLike, ValueType]):
         cls,
         value_pint: PlainQuantity[ValueType],  # type: ignore [type-var]
         dimension: DimensionLike,
-        unit: Optional[str],
-    ) -> Union[ValueType, PlainQuantity[ValueType]]:  # type: ignore [type-var]
+        unit: str | None,
+    ) -> ValueType | PlainQuantity[ValueType]:  # type: ignore [type-var]
         return cls.from_pint(value_pint, dimension).to_pint_or_unit(unit)
 
 

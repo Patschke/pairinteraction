@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+// SPDX-FileCopyrightText: 2024 PairInteraction Developers
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "pairinteraction/basis/BasisPairCreator.hpp"
@@ -12,6 +12,7 @@
 #include "pairinteraction/system/SystemAtom.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <limits>
 #include <memory>
 

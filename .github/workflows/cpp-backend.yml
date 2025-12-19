@@ -34,7 +34,7 @@ jobs:
             EXTRA_CMAKE_ARGS: -DCMAKE_CXX_COMPILER="g++-12"
           - distro: static-analysis
             EXTRA_CMAKE_ARGS: -DCMAKE_CXX_COMPILER="clang++" -DCMAKE_CXX_CLANG_TIDY="clang-tidy"
-          - os: macos-13
+          - os: macos-15-intel
             distro: macos
             name: macos-x86_64
             TEST_TARGET: "test"
@@ -61,14 +61,14 @@ jobs:
       image: ${{ matrix.os == 'ubuntu-latest' && format('ghcr.io/pairinteraction/pairinteraction-{0}:docker', matrix.distro) || null }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install macOS dependencies
-      if: ${{ matrix.distro == 'macos' }}
-      run: brew install --force-bottle spdlog eigen fmt lapack nlohmann-json tbb
+      if: runner.os == 'macOS'
+      run: brew install --force-bottle spdlog nlohmann-json eigen tbb lapack fmt
 
     - name: Install Windows dependencies
-      if: ${{ matrix.distro == 'windows' }}
+      if: runner.os == 'Windows'
       uses: ./.github/actions/setup-vcpkg
 
     - name: Setup uv build virtual environment

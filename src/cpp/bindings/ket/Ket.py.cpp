@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+// SPDX-FileCopyrightText: 2024 PairInteraction Developers
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "./Ket.py.hpp"
@@ -40,7 +40,8 @@ static void declare_ket(nb::module_ &m) {
 static void declare_ket_atom(nb::module_ &m) {
     std::string pyclass_name = "KetAtom";
     nb::class_<KetAtom, Ket> pyclass(m, pyclass_name.c_str());
-    pyclass.def("get_species", &KetAtom::get_species)
+    pyclass.def("get_database", &KetAtom::get_database, nb::rv_policy::reference)
+        .def("get_species", &KetAtom::get_species)
         .def("get_quantum_number_n", &KetAtom::get_quantum_number_n)
         .def("get_quantum_number_nu", &KetAtom::get_quantum_number_nu)
         .def("get_quantum_number_nui", &KetAtom::get_quantum_number_nui)

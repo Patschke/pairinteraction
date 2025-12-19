@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2025 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 import logging
@@ -6,10 +6,8 @@ from typing import TYPE_CHECKING
 
 from attr import dataclass
 
-from pairinteraction import (
-    complex as pi_complex,
-    real as pi_real,
-)
+import pairinteraction as pi_complex
+import pairinteraction.real as pi_real
 from pairinteraction_gui.calculate.calculate_base import Parameters, Results
 from pairinteraction_gui.worker import run_in_other_process
 
@@ -21,19 +19,19 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ParametersOneAtom(Parameters["OneAtomPage"]):
-    """Parameters for the one atom calculation."""
+    """Parameters for the single-atom calculation."""
 
 
 @dataclass
 class ResultsOneAtom(Results):
-    """Results for the one atom calculation."""
+    """Results for the single-atom calculation."""
 
 
 @run_in_other_process
 def calculate_one_atom(parameters: ParametersOneAtom) -> ResultsOneAtom:
     """Calculate the energy plot for one atom.
 
-    This means, given a Parameters object, do the pairinteraction calculations and return an ResultsOneAtom object.
+    This means, given a Parameters object, do the PairInteraction calculations and return an ResultsOneAtom object.
     """
     return _calculate_one_atom(parameters)
 
@@ -50,6 +48,7 @@ def _calculate_one_atom(parameters: ParametersOneAtom) -> ResultsOneAtom:
         pi.SystemAtom(basis)
         .set_electric_field(parameters.get_efield(step), unit="V/cm")
         .set_magnetic_field(parameters.get_bfield(step), unit="G")
+        .set_diamagnetism_enabled(parameters.diamagnetism_enabled)
         for step in range(parameters.steps)
     ]
 
@@ -57,7 +56,7 @@ def _calculate_one_atom(parameters: ParametersOneAtom) -> ResultsOneAtom:
     pi.diagonalize(
         system_list,
         **parameters.diagonalize_kwargs,
-        **parameters.get_diagonalize_energy_range(ket_energy),
+        **parameters.get_diagonalize_energy_range_kwargs(ket_energy),
     )
     logger.debug("Done diagonalizing SystemAtoms.")
     return ResultsOneAtom.from_calculate(parameters, system_list, ket, ket_energy)

@@ -22,10 +22,10 @@ jobs:
     container:
       image: ghcr.io/pairinteraction/pairinteraction-debian:docker
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Setup uv project virtual environment
       uses: ./.github/actions/setup-uv-all-deps
-    - name: Install pairinteraction into virtual environment
+    - name: Install PairInteraction into virtual environment
       run: uv pip install .[mypy]
     - name: Install the benchmarking tool
       run: uv pip install tools/benchmarking[mypy]

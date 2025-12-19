@@ -1,10 +1,11 @@
-# SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2024 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
-"""Tests for atomic unit conversions using pint."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pytest
-from pint import UnitRegistry
 
 from tests.constants import (
     GAUSS_IN_ATOMIC_UNITS,
@@ -13,6 +14,9 @@ from tests.constants import (
     HARTREE_IN_JOULES,
     VOLT_PER_CM_IN_ATOMIC_UNITS,
 )
+
+if TYPE_CHECKING:
+    from pint import UnitRegistry
 
 
 def test_hartree_to_joules(ureg: UnitRegistry) -> None:

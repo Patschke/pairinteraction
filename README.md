@@ -1,11 +1,10 @@
-# Pairinteraction - A Rydberg Interaction Calculator
+# PairInteraction - A Rydberg Interaction Calculator
 
 [![PyPI Package][pypi-svg]][pypi-link]
 [![arXiv:1612.08053][arXiv-svg]][arXiv-link]
 [![License: LGPL v3][license-lgpl-svg]][license-lgpl-link]
 [![CI Workflow][gh-workflow-svg]][gh-workflow-link]
 [![Quality Gate Status][sonarcloud-svg]][sonarcloud-link]
-[![C++ Coverage - ctest][coverage-cpp-ctest-svg]][coverage-cpp-ctest-link]
 [![C++ Coverage - pytest][coverage-cpp-pytest-svg]][coverage-cpp-pytest-link]
 [![Python Coverage - pytest][coverage-python-pytest-svg]][coverage-python-pytest-link]
 [![Documentation][docs-svg]][docs-link]
@@ -20,40 +19,38 @@
 [gh-workflow-link]: https://github.com/pairinteraction/pairinteraction/actions/workflows/python-wheel.yml
 [sonarcloud-svg]: https://sonarcloud.io/api/project_badges/measure?project=pairinteraction_pairinteraction&metric=alert_status
 [sonarcloud-link]: https://sonarcloud.io/dashboard?id=pairinteraction_pairinteraction
-[coverage-cpp-ctest-svg]: https://img.shields.io/badge/C%2B%2B_coverage-ctest-blue.svg?style=flat
-[coverage-cpp-ctest-link]: https://www.pairinteraction.org/pairinteraction/coverage/cpp-ctest/html/index.html
-[coverage-cpp-pytest-svg]: https://img.shields.io/badge/C%2B%2B_coverage-pytest-blue.svg?style=flat
-[coverage-cpp-pytest-link]: https://www.pairinteraction.org/pairinteraction/coverage/cpp-pytest/html/index.html
-[coverage-python-pytest-svg]: https://img.shields.io/badge/Python_coverage-pytest-blue.svg?style=flat
-[coverage-python-pytest-link]: https://www.pairinteraction.org/pairinteraction/coverage/python-pytest/html/index.html
+[coverage-cpp-pytest-svg]: https://pairinteraction.github.io/pairinteraction/coverage/cpp-pytest/badge.svg
+[coverage-cpp-pytest-link]: https://www.pairinteraction.org/pairinteraction/coverage/cpp-pytest/index.html
+[coverage-python-pytest-svg]: https://pairinteraction.github.io/pairinteraction/coverage/python-pytest/badge.svg
+[coverage-python-pytest-link]: https://www.pairinteraction.org/pairinteraction/coverage/python-pytest/index.html
 [docs-svg]: https://img.shields.io/badge/Documentation-pairinteraction.org-blue.svg?style=flat
-[docs-link]: https://www.pairinteraction.org/pairinteraction/sphinx/html/
+[docs-link]: https://www.pairinteraction.org/pairinteraction/
 
-**Note: This is a completely new version of the pairinteraction software that is not backward compatible to versions below v1.0.**
+**Note: This is a completely new version of the PairInteraction software that is not backward compatible to versions below v1.0.**
 
-The *pairinteraction* software calculates properties of Rydberg atoms. The software consists of a Python library and a graphical user interface for obtaining single-atom properties and calculating pair potentials, making use of a high-performance C++ backend. For a more detailed description of the software that is written to be accessible also to non-specialists, see the [About page][about-link] of the project. The software can be installed via pip (requires Python >= 3.9, for tips see our [extended installation instructions][installation-link]):
+The *PairInteraction* software calculates properties of Rydberg atoms. The software consists of a Python library and a graphical user interface for obtaining single-atom properties and calculating pair potentials, making use of a high-performance C++ backend. For a more detailed description of the software that is written to be accessible also to non-specialists, see the [About page][about-link] of the project. The software can be installed via pip (requires Python >= 3.9, for tips see our [extended installation instructions][installation-link]):
 
 ```bash
 pip install pairinteraction
 ```
 
-You can use the pairinteraction software as a Python library, see our [quick start guide to get started in 5 minutes][tutorial-link], or you can launch its graphical user interface from the command line:
+You can use the PairInteraction software as a Python library, see our [quick start guide to get started in 5 minutes][tutorial-link], or you can launch its graphical user interface from the command line:
 
 ```bash
 pairinteraction gui
 ```
 
-[about-link]: https://www.pairinteraction.org/pairinteraction/sphinx/html/about.html
-[installation-link]: https://www.pairinteraction.org/pairinteraction/sphinx/html/installation/installation.html
-[tutorial-link]: https://www.pairinteraction.org/pairinteraction/sphinx/html/tutorials/examples_python/quick_start.html
+[about-link]: https://www.pairinteraction.org/pairinteraction/stable/about.html
+[installation-link]: https://www.pairinteraction.org/pairinteraction/stable/installation/installation.html
+[tutorial-link]: https://www.pairinteraction.org/pairinteraction/stable/tutorials/examples_python/quick_start.html
 
 ## Highlights
 
-* For calculating Rydberg pair potentials, the software uses a similar approach as the [old version of pairinteraction](https://github.com/pairinteraction/pairinteraction/tree/v0.9.10), the [Alkali.ne Rydberg Calculator](https://github.com/nikolasibalic/ARC-Alkali-Rydberg-Calculator), and the [rydcalc library](https://github.com/ThompsonLabPrinceton/rydcalc). We optimized the construction and diagonalization of Hamiltonians, typically achieving a **speedup of 5-20x** compared to other implementations.
+* For calculating Rydberg pair potentials, the software uses a similar approach to the [old version of PairInteraction](https://github.com/pairinteraction/pairinteraction/tree/v0.9.10), the [Alkali.ne Rydberg Calculator](https://github.com/nikolasibalic/ARC-Alkali-Rydberg-Calculator), and the [rydcalc library](https://github.com/ThompsonLabPrinceton/rydcalc). We optimized the construction and diagonalization of Hamiltonians, typically achieving a **speedup of 5-20x** compared to other implementations.
 
   ![benchmarking results][benchmark-results-link]
 
-  *Figure: Benchmarking the construction and diagonalization of a Hamiltonian of a pair of Rb 60S atoms for 100 different internuclear distances on an AMD Ryzen 7 5700G CPU using Windows 11. The Hilbert space comprises pair states that differ at most by 4 in n, l and 25GHz in energy. When supported, symmetries where used to reduce the Hilbert space size. See the [benchmarking tool][benchmark-tool].*
+  *Figure: Benchmarking the construction and diagonalization of a Hamiltonian of a pair of Rb 60S atoms for 100 different internuclear distances on an AMD Ryzen 7 5700G CPU using Windows 11. The Hilbert space comprises pair states that differ at most by 4 in n, l and 25GHz in energy. When supported, symmetries were used to reduce the Hilbert space size. See the [benchmarking tool][benchmark-tool].*
 
 * The software uses single-channel quantum defect theory (SQDT) and also **multi-channel quantum defect theory (MQDT)** for the accurate description of atoms.
 
@@ -69,14 +66,14 @@ pairinteraction gui
 
 ## How to Cite
 
-If you use pairinteraction in your research, please cite our tutorial paper:
+If you use PairInteraction in your research, please cite our tutorial paper:
 
 > Sebastian Weber, Christoph Tresp, Henri Menke, Alban Urvoy, Ofer Firstenberg, Hans Peter Büchler, Sebastian Hofferberth, *Tutorial: Calculation of Rydberg interaction potentials*, [J. Phys. B: At. Mol. Opt. Phys. 50, 133001 (2017)][journal-link], [arXiv:1612.08053][arXiv-link]
 
 **Quantum Defects**
 <a id="quantum-defects"></a>
 
-Pairinteraction relies on quantum defects provided by the community. Consider citing relevant publications for your atomic species alongside pairinteraction.
+PairInteraction relies on quantum defects provided by the community. Consider citing relevant publications for your atomic species alongside PairInteraction.
 
 <p><details>
 <summary><b>Click to expand for quantum defect references</b></summary>
@@ -97,7 +94,7 @@ Pairinteraction relies on quantum defects provided by the community. Consider ci
 | Yb173   | MQDT                  | `Yb173_mqdt`   | MQDT model formulated by us                                                                                                                                  |
 | Yb174   | MQDT                  | `Yb174_mqdt`   | [10.48550/arXiv.2406.01482] (2024)                                                                                                                           |
 
-The identifier can be used to specify an atomic species in the pairinteraction software.
+The identifier can be used to specify an atomic species in the PairInteraction software.
 
 
 </details></p>
@@ -130,19 +127,21 @@ The identifier can be used to specify an atomic species in the pairinteraction s
 - [Installation] - Whether you prefer an installation via pip or compiling from source, we've got all the information you need.
 
 - [Tutorials] - Covering both the graphical user interface and the Python library,
-these tutorials enable you to leverage pairinteraction for your projects.
+these tutorials enable you to leverage PairInteraction for your projects.
 
-- [API Reference] - Documentation of classes and functions of pairinteraction's Python library.
+- [API Reference] - Documentation of classes and functions of PairInteraction's Python library.
 
-- [Publications] - Find out more about the theory behind pairinteraction and how to cite it and the quantum defects you use.
+- [Publications] - Find out more about the theory behind PairInteraction and how to cite it and the quantum defects you use.
+
+- [FAQs] - Frequently asked questions.
 
 **Contributor Guide**
 
-- [Getting Started as a Contributor] - Discover the many ways you can help improve pairinteraction, from contributing to the repository to providing quantum defects.
+- [Getting Started as a Contributor] - Discover the many ways you can help improve PairInteraction, from contributing to the repository to providing quantum defects.
 
-- [Overview About pairinteraction's Architecture] - Find out how pairinteraction is structured.
+- [Overview of PairInteraction's Architecture] - Find out how PairInteraction is structured.
 
-- [Style Guide] - Learn about the coding style used in pairinteraction.
+- [Style Guide] - Learn about the coding style used in PairInteraction.
 
 - [Database Format] - Explore the database for storing atomic states and matrix elements.
 
@@ -150,18 +149,19 @@ these tutorials enable you to leverage pairinteraction for your projects.
 
 - [MQDT.jl] - Learn how to calculate states and matrix elements using multi-channel quantum defect theory with our tool written in Julia.
 
-- [ryd-numerov] - Learn how to calculate states and matrix elements using single quantum defect theory with our tool written in Python.
+- [RydState] - Learn how to calculate Rydberg states and matrix elements using single quantum defect theory with our tool written in Python.
 
-[Installation]: https://www.pairinteraction.org/pairinteraction/sphinx/html/installation/installation.html
-[Tutorials]: https://www.pairinteraction.org/pairinteraction/sphinx/html/tutorials/tutorials.html
-[API Reference]: https://www.pairinteraction.org/pairinteraction/sphinx/html/api_reference.html
-[Publications]: https://www.pairinteraction.org/pairinteraction/sphinx/html/publications/publications.html
-[Getting Started as a Contributor]: https://www.pairinteraction.org/pairinteraction/sphinx/html/contribute/getting_started.html
-[Overview About pairinteraction's Architecture]: https://www.pairinteraction.org/pairinteraction/sphinx/html/contribute/architecture.html
-[Style Guide]: https://www.pairinteraction.org/pairinteraction/sphinx/html/contribute/style_guide.html
-[Database Format]: https://www.pairinteraction.org/pairinteraction/sphinx/html/contribute/database.html
+[Installation]: https://www.pairinteraction.org/pairinteraction/stable/installation/installation.html
+[Tutorials]: https://www.pairinteraction.org/pairinteraction/stable/tutorials/tutorials.html
+[API Reference]: https://www.pairinteraction.org/pairinteraction/stable/api_reference.html
+[Publications]: https://www.pairinteraction.org/pairinteraction/stable/publications/publications.html
+[FAQs]: https://www.pairinteraction.org/pairinteraction/stable/faqs.html
+[Getting Started as a Contributor]: https://www.pairinteraction.org/pairinteraction/stable/contribute/getting_started.html
+[Overview of PairInteraction's Architecture]: https://www.pairinteraction.org/pairinteraction/stable/contribute/architecture.html
+[Style Guide]: https://www.pairinteraction.org/pairinteraction/stable/contribute/style_guide.html
+[Database Format]: https://www.pairinteraction.org/pairinteraction/stable/contribute/database.html
 [MQDT.jl]: https://github.com/pairinteraction/MQDT.jl
-[ryd-numerov]: https://github.com/pairinteraction/ryd-numerov/
+[RydState]: https://github.com/pairinteraction/rydstate
 
 ## Contributors
 
@@ -179,7 +179,7 @@ In addition, the following people contributed significantly to the current and/o
 
 We warmly welcome new contributions! Please see our [contributor guide][contributor-link] for more information!
 
-The development of the pairinteraction software has been supported by the [Institute for Theoretical Physics III] of the University of Stuttgart, the Federal Ministry of Education and Research under the Grants [QRydDemo] and [MUNIQC-Atoms], and the company [Atom Computing]. The development of the original version of the software started at the [5th Institute of Physics] of the University of Stuttgart.
+The development of the PairInteraction software has been supported by the [Institute for Theoretical Physics III] of the University of Stuttgart, the Federal Ministry of Education and Research under the Grants [QRydDemo] and [MUNIQC-Atoms], and the company [Atom Computing]. The development of the original version of the software started at the [5th Institute of Physics] of the University of Stuttgart.
 
 [![University of Stuttgart][stuttgart-jpg]][stuttgart-link]
 [![Federal Ministry of Education and Research][bmbf-jpg]][bmbf-link]
@@ -205,8 +205,8 @@ The development of the pairinteraction software has been supported by the [Insti
 [Nicolas Zuber]: https://github.com/tripiti
 [Johannes Block]: https://github.com/johblock
 [Simon Hollerith]: https://github.com/SimonHollerith
-[contributor-link]: https://www.pairinteraction.org/pairinteraction/sphinx/html/contribute/getting_started.html
+[contributor-link]: https://www.pairinteraction.org/pairinteraction/stable/contribute/getting_started.html
 
 ## License
 
-The pairinteraction software is licensed under [LGPL v3][license-lgpl-link]. For more information, see [LICENSE.txt](https://github.com/pairinteraction/pairinteraction/blob/master/LICENSE.txt).
+The PairInteraction software is licensed under [LGPL v3][license-lgpl-link]. For more information, see [LICENSE.txt](https://github.com/pairinteraction/pairinteraction/blob/master/LICENSE.txt).

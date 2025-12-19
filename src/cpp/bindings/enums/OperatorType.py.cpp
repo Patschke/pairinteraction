@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+// SPDX-FileCopyrightText: 2024 PairInteraction Developers
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "./OperatorType.py.hpp"
@@ -19,5 +19,6 @@ void bind_operator_type(nb::module_ &m) {
         .value("ELECTRIC_QUADRUPOLE_ZERO", OperatorType::ELECTRIC_QUADRUPOLE_ZERO)
         .value("ELECTRIC_OCTUPOLE", OperatorType::ELECTRIC_OCTUPOLE)
         .value("MAGNETIC_DIPOLE", OperatorType::MAGNETIC_DIPOLE)
+        .value("IDENTITY", OperatorType::IDENTITY)
         .value("ARBITRARY", OperatorType::ARBITRARY);
 }

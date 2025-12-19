@@ -1,45 +1,41 @@
-# SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2024 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
-"""Test the pair potential calculation."""
+from __future__ import annotations
 
-from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
-import pairinteraction.real as pi
 import pytest
 
+from .utils import REFERENCE_PATHS, compare_eigensystem_to_reference
+
 if TYPE_CHECKING:
-    from pairinteraction.units import NDArray
-
-reference_kets_file = Path(__file__).parent.parent / "data/reference_pair_potential/kets.txt"
-reference_eigenenergies_file = Path(__file__).parent.parent / "data/reference_pair_potential/eigenenergies.txt"
-reference_overlaps_file = Path(__file__).parent.parent / "data/reference_pair_potential/overlaps.txt"
+    from .utils import PairinteractionModule
 
 
-def test_pair_potential(generate_reference: bool) -> None:
+def test_pair_potential(pi_module: PairinteractionModule, generate_reference: bool) -> None:
     """Test calculating a pair potential."""
     # Create a single-atom system
-    basis = pi.BasisAtom("Rb", n=(58, 62), l=(0, 2))
+    basis = pi_module.BasisAtom("Rb", n=(58, 62), l=(0, 2))
     print(f"Number of single-atom basis states: {basis.number_of_states}")
 
-    system = pi.SystemAtom(basis)
+    system = pi_module.SystemAtom(basis)
 
     # Create two-atom systems for different interatomic distances
-    ket = pi.KetAtom("Rb", n=60, l=0, m=0.5)
+    ket = pi_module.KetAtom("Rb", n=60, l=0, m=0.5)
     delta_energy = 3  # GHz
     min_energy = 2 * ket.get_energy(unit="GHz") - delta_energy
     max_energy = 2 * ket.get_energy(unit="GHz") + delta_energy
 
-    basis_pair = pi.BasisPair([system, system], energy=(min_energy, max_energy), energy_unit="GHz", m=(1, 1))
+    basis_pair = pi_module.BasisPair([system, system], energy=(min_energy, max_energy), energy_unit="GHz", m=(1, 1))
     print(f"Number of two-atom basis states: {basis_pair.number_of_states}")
 
     distances = np.linspace(1, 5, 5)
-    system_pairs = [pi.SystemPair(basis_pair).set_distance(d, unit="micrometer") for d in distances]
+    system_pairs = [pi_module.SystemPair(basis_pair).set_distance(d, unit="micrometer") for d in distances]
 
     # Diagonalize the systems in parallel
-    pi.diagonalize(system_pairs, diagonalizer="eigen", sort_by_energy=True)
+    pi_module.diagonalize(system_pairs, diagonalizer="eigen", sort_by_energy=True)
 
     # Get the overlap with |ket, ket>
     overlaps = np.array([system.get_eigenbasis().get_overlaps([ket, ket]) for system in system_pairs])
@@ -48,36 +44,16 @@ def test_pair_potential(generate_reference: bool) -> None:
     np.testing.assert_allclose(np.sum(overlaps, axis=1), np.ones(5))
 
     # Compare to reference data
-    kets = [repr(ket) for ket in basis_pair.kets]
+    kets = [ket.get_label("raw") for ket in basis_pair.kets]
     eigenenergies = np.array([system.get_eigenenergies(unit="GHz") for system in system_pairs])
     eigenvectors = np.array([system.get_eigenbasis().get_coefficients().todense().A1 for system in system_pairs])
 
+    reference_path = REFERENCE_PATHS["pair_potential"]
     if generate_reference:
-        reference_kets_file.parent.mkdir(parents=True, exist_ok=True)
-        np.savetxt(reference_kets_file, kets, fmt="%s", delimiter="\t")
-        np.savetxt(reference_eigenenergies_file, eigenenergies)
-        np.savetxt(reference_overlaps_file, overlaps)
+        reference_path.mkdir(parents=True, exist_ok=True)
+        np.savetxt(reference_path / "kets.txt", kets, fmt="%s", delimiter="\t")
+        np.savetxt(reference_path / "eigenenergies.txt", eigenenergies)
+        np.savetxt(reference_path / "overlaps.txt", overlaps)
         pytest.skip("Reference data generated, skipping comparison test")
 
-    compare_pair_potential_to_reference(eigenenergies, overlaps, eigenvectors, kets)
-
-
-def compare_pair_potential_to_reference(
-    eigenenergies: "NDArray",
-    overlaps: Optional["NDArray"] = None,
-    eigenvectors: Optional["NDArray"] = None,
-    kets: Optional[list[str]] = None,
-) -> None:
-    np.testing.assert_allclose(eigenenergies, np.loadtxt(reference_eigenenergies_file))
-
-    if overlaps is not None:
-        np.testing.assert_allclose(overlaps, np.loadtxt(reference_overlaps_file), atol=1e-10)
-
-    if kets is not None:
-        np.testing.assert_equal(kets, np.loadtxt(reference_kets_file, dtype=str, delimiter="\t"))
-
-    if eigenvectors is not None:
-        # Because of degeneracies, checking the eigenvectors against reference data is complicated.
-        # Thus, we only check their normalization and orthogonality.
-        cumulative_norm = (np.array(eigenvectors) * np.array(eigenvectors).conj()).sum(axis=1)
-        np.testing.assert_allclose(cumulative_norm, 19 * np.ones(5))
+    compare_eigensystem_to_reference(reference_path, eigenenergies, overlaps, eigenvectors, kets)

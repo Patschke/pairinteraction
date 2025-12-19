@@ -16,6 +16,7 @@
     tutorials/tutorials.rst
     api_reference.rst
     publications/publications.rst
+    faqs.rst
 
 .. toctree::
     :maxdepth: 2
@@ -33,4 +34,4 @@
     :hidden:
 
     MQDT.jl <https://github.com/pairinteraction/MQDT.jl>
-    ryd-numerov <https://github.com/pairinteraction/ryd-numerov/>
+    RydState <https://github.com/pairinteraction/rydstate>

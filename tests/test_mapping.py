@@ -1,23 +1,24 @@
-# SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2024 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
-"""Test the mapping between kets and states."""
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 import numpy as np
-import pairinteraction.real as pi
 from scipy.optimize import linear_sum_assignment
 
 if TYPE_CHECKING:
     from pairinteraction.units import NDArray
 
+    from .utils import PairinteractionModule
 
-def test_mapping() -> None:
+
+def test_mapping(pi_module: PairinteractionModule) -> None:
     """Test generation of a mapping."""
     # Get the eigenbasis of the Hamiltonian describing an atom in an electric field
-    basis = pi.BasisAtom("Rb", n=(58, 62), l=(0, 2))
-    system = pi.SystemAtom(basis).set_electric_field([0, 0, 2.5], unit="V/cm")
+    basis = pi_module.BasisAtom("Rb", n=(58, 62), l=(0, 2))
+    system = pi_module.SystemAtom(basis).set_electric_field([0, 0, 2.5], unit="V/cm")
     system.diagonalize(diagonalizer="eigen", sort_by_energy=True)
     eigenbasis = system.get_eigenbasis()
 
@@ -37,7 +38,7 @@ def test_mapping() -> None:
     cols = cols[sorter]
 
     # Because we have chosen the electric field to be weak enough to avoid strong mixing of states,
-    # the mapping obtained by pairinteraction's heuristic should be the same as the optimal mapping
+    # the mapping obtained by PairInteraction's heuristic should be the same as the optimal mapping
     # obtained by scipy's linear_sum_assignment
     np.testing.assert_array_equal(rows, np.arange(eigenbasis.number_of_kets))
     np.testing.assert_array_equal(cols, state_indices)  # TODO

@@ -1,29 +1,29 @@
-# SPDX-FileCopyrightText: 2025 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2025 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
+from __future__ import annotations
 
 import logging
 from abc import ABC
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import numpy as np
 from attr import dataclass
 
-from pairinteraction import (
-    _wrapped,
-    complex as pi_complex,
-    real as pi_real,
-)
-from pairinteraction_gui.config.system_config import RangesKeys
+import pairinteraction as pi
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from typing_extensions import Self
 
+    from pairinteraction.system import SystemAtom, SystemAtomReal, SystemPair, SystemPairReal
     from pairinteraction.units import NDArray
+    from pairinteraction_gui.config.basis_config import QuantumNumberRestrictions
+    from pairinteraction_gui.config.ket_config import QuantumNumbers
+    from pairinteraction_gui.config.system_config import RangesKeys
     from pairinteraction_gui.page import OneAtomPage, TwoAtomsPage
 
 logger = logging.getLogger(__name__)
-
-# FIXME: having all kwargs dictionaries being Any is a hacky solution, it would be nice to use TypedDict in the future
 
 UnitFromRangeKey: dict[RangesKeys, str] = {
     "Ex": "V/cm",
@@ -53,11 +53,12 @@ PageType = TypeVar("PageType", "OneAtomPage", "TwoAtomsPage")
 @dataclass
 class Parameters(ABC, Generic[PageType]):
     species: tuple[str, ...]
-    quantum_numbers: tuple[dict[str, float], ...]
-    quantum_number_deltas: tuple[dict[str, float], ...]
+    quantum_numbers: tuple[QuantumNumbers, ...]
+    quantum_number_restrictions: tuple[QuantumNumberRestrictions, ...]
     ranges: dict[RangesKeys, list[float]]
+    diamagnetism_enabled: bool
     diagonalize_kwargs: dict[str, str]
-    diagonalize_relative_energy_range: Union[tuple[float, float], None]
+    diagonalize_relative_energy_range: tuple[float, float] | None
     number_state_labels: int
 
     def __post_init__(self) -> None:
@@ -68,21 +69,24 @@ class Parameters(ABC, Generic[PageType]):
 
         # Check if all tuples have the same length
         if not all(
-            len(tup) == self.n_atoms for tup in [self.species, self.quantum_numbers, self.quantum_number_deltas]
+            len(tup) == self.n_atoms for tup in [self.species, self.quantum_numbers, self.quantum_number_restrictions]
         ):
             raise ValueError("All tuples must have the same length as the number of atoms")
 
     @classmethod
-    def from_page(cls, page: PageType) -> "Self":
+    def from_page(cls, page: PageType) -> Self:
         """Create Parameters object from page."""
         n_atoms = page.ket_config.n_atoms
 
         species = tuple(page.ket_config.get_species(atom) for atom in range(n_atoms))
         quantum_numbers = tuple(page.ket_config.get_quantum_numbers(atom) for atom in range(n_atoms))
 
-        quantum_number_deltas = tuple(page.basis_config.get_quantum_number_deltas(atom) for atom in range(n_atoms))
+        quantum_number_restrictions = tuple(
+            page.basis_config.get_quantum_number_restrictions(atom) for atom in range(n_atoms)
+        )
 
         ranges = page.system_config.get_ranges_dict()
+        diamagnetism_enabled = page.system_config.diamagnetism.isChecked()
 
         diagonalize_kwargs = {}
         if page.calculation_config.fast_mode.isChecked():
@@ -96,8 +100,9 @@ class Parameters(ABC, Generic[PageType]):
         return cls(
             species,
             quantum_numbers,
-            quantum_number_deltas,
+            quantum_number_restrictions,
             ranges,
+            diamagnetism_enabled,
             diagonalize_kwargs,
             diagonalize_relative_energy_range,
             page.calculation_config.number_state_labels.value(default=0),
@@ -128,29 +133,23 @@ class Parameters(ABC, Generic[PageType]):
         bfield_keys: list[RangesKeys] = ["Bx", "By", "Bz"]
         return [self.ranges[key][step] if key in self.ranges else 0 for key in bfield_keys]
 
-    def get_species(self, atom: Optional[int] = None) -> str:
+    def get_species(self, atom: int | None = None) -> str:
         """Return the species for the given ket."""
         return self.species[self._check_atom(atom)]
 
-    def get_quantum_numbers(self, atom: Optional[int] = None) -> dict[str, Any]:
+    def get_quantum_numbers(self, atom: int | None = None) -> QuantumNumbers:
         """Return the quantum numbers for the given ket."""
         return self.quantum_numbers[self._check_atom(atom)]
 
-    def get_quantum_number_restrictions(self, atom: Optional[int] = None) -> dict[str, Any]:
-        """Return the quantum number restrictions for the given ket."""
-        atom = self._check_atom(atom)
-        qn_restrictions: dict[str, tuple[float, float]] = {}
-        for key, delta in self.quantum_number_deltas[atom].items():
-            if key in self.quantum_numbers[atom]:
-                qn_restrictions[key] = (
-                    self.quantum_numbers[atom][key] - delta,
-                    self.quantum_numbers[atom][key] + delta,
-                )
-            else:
-                raise ValueError(f"Quantum number delta {key} not found in quantum numbers.")
-        return qn_restrictions
+    def get_ket_atom(self, atom: int | None = None) -> pi.KetAtom:
+        """Return the ket atom for the given atom index."""
+        return pi.KetAtom(self.get_species(atom), **self.get_quantum_numbers(atom))
 
-    def _check_atom(self, atom: Optional[int] = None) -> int:
+    def get_quantum_number_restrictions(self, atom: int | None = None) -> QuantumNumberRestrictions:
+        """Return the quantum number restrictions."""
+        return self.quantum_number_restrictions[self._check_atom(atom)]
+
+    def _check_atom(self, atom: int | None = None) -> int:
         """Check if the atom is valid."""
         if atom is not None:
             return atom
@@ -158,11 +157,11 @@ class Parameters(ABC, Generic[PageType]):
             return 0
         raise ValueError("Atom index is required for multiple atoms")
 
-    def get_diagonalize_energy_range(self, energy_of_interest: float) -> dict[str, Any]:
+    def get_diagonalize_energy_range_kwargs(self, energy_of_interest: float) -> dict[str, Any]:
         """Return the kwargs for the diagonalization energy range."""
         if self.diagonalize_relative_energy_range is None:
             return {}
-        kwargs: dict[str, Any] = {"energy_unit": "GHz"}
+        kwargs: dict[str, Any] = {"energy_range_unit": "GHz"}
         kwargs["energy_range"] = (
             energy_of_interest + self.diagonalize_relative_energy_range[0],
             energy_of_interest + self.diagonalize_relative_energy_range[1],
@@ -197,6 +196,7 @@ class Parameters(ABC, Generic[PageType]):
             "$PI_DTYPE": "real" if self.is_real else "complex",
             "$X_VARIABLE_NAME": VariableNameFromRangeKey[max_key],
             "$X_LABEL": as_string(self.get_x_label(), raw_string=True),
+            "$DIAMAGNETISM_ENABLED": str(self.diamagnetism_enabled),
         }
 
         for atom in range(self.n_atoms):
@@ -215,34 +215,39 @@ class Parameters(ABC, Generic[PageType]):
 
         replacements["$DIAGONALIZE_KWARGS"] = dict_to_repl(self.diagonalize_kwargs)
 
-        if self.diagonalize_relative_energy_range is not None:
+        if self.diagonalize_relative_energy_range is None:
+            replacements["$DIAGONALIZE_ENERGY_RANGE_KWARGS"] = ""
+        elif self.n_atoms == 1:
             r_energy = self.diagonalize_relative_energy_range
             replacements["$DIAGONALIZE_ENERGY_RANGE_KWARGS"] = (
-                f', energy_range=(ket_energy + {r_energy[0]}, ket_energy - {-r_energy[1]}), energy_unit="GHz"'
+                f', energy_range=(ket_energy + {r_energy[0]}, ket_energy - {-r_energy[1]}), energy_range_unit="GHz"'
+            )
+        elif self.n_atoms == 2:
+            r_energy = self.diagonalize_relative_energy_range
+            replacements["$DIAGONALIZE_ENERGY_RANGE_KWARGS"] = (
+                f', energy_range=(pair_energy + {r_energy[0]}, pair_energy - {-r_energy[1]}), energy_range_unit="GHz"'
             )
         else:
-            replacements["$DIAGONALIZE_ENERGY_RANGE_KWARGS"] = ""
+            raise RuntimeError("Energy range kwargs not implemented for more than two atoms")
 
         return replacements
 
 
 @dataclass
 class Results(ABC):
-    energies: list["NDArray"]
+    energies: list[NDArray]
     energy_offset: float
-    ket_overlaps: list["NDArray"]
+    ket_overlaps: list[NDArray]
     state_labels: dict[int, list[str]]
 
     @classmethod
     def from_calculate(
         cls,
         parameters: Parameters[Any],
-        system_list: Union[
-            list[pi_real.SystemPair], list[pi_complex.SystemPair], list[pi_real.SystemAtom], list[pi_complex.SystemAtom]
-        ],
-        ket: Union[_wrapped.KetAtom, tuple[_wrapped.KetAtom, ...]],
+        system_list: list[SystemPairReal] | list[SystemPair] | list[SystemAtomReal] | list[SystemAtom],
+        ket: pi.KetAtom | tuple[pi.KetAtom, ...],
         energy_offset: float,
-    ) -> "Self":
+    ) -> Self:
         """Create Results object from ket, basis, and diagonalized systems."""
         energies = [system.get_eigenenergies("GHz") - energy_offset for system in system_list]
         ket_overlaps = [system.get_eigenbasis().get_overlaps(ket) for system in system_list]  # type: ignore [arg-type]
@@ -261,7 +266,7 @@ def as_string(value: str, *, raw_string: bool = False) -> str:
     return string
 
 
-def dict_to_repl(d: dict[str, Any]) -> str:
+def dict_to_repl(d: Mapping[str, Any]) -> str:
     """Convert a dictionary to a string for replacement."""
     if not d:
         return ""

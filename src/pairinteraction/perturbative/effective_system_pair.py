@@ -1,35 +1,32 @@
-# SPDX-FileCopyrightText: 2025 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2025 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
+from __future__ import annotations
 
 import contextlib
 import copy
 import logging
-from collections.abc import Sequence
 from functools import cached_property, lru_cache
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
+from typing import TYPE_CHECKING, Literal, overload
 
 import numpy as np
 from scipy import sparse
 
-from pairinteraction import (
-    complex as pi_complex,
-    real as pi_real,
-)
+from pairinteraction.basis import BasisAtom, BasisAtomReal, BasisPair, BasisPairReal
+from pairinteraction.diagonalization import diagonalize
 from pairinteraction.perturbative.perturbation_theory import calculate_perturbative_hamiltonian
+from pairinteraction.system import SystemAtom, SystemAtomReal, SystemPair, SystemPairReal
 from pairinteraction.units import QuantityArray, QuantityScalar
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from scipy.sparse import csr_matrix
     from typing_extensions import Self
 
-    from pairinteraction._wrapped.basis.basis_atom import BasisAtom
-    from pairinteraction._wrapped.basis.basis_pair import BasisPair
-    from pairinteraction._wrapped.ket.ket_atom import (
+    from pairinteraction.ket import (
         KetAtom,  # noqa: F401  # needed for sphinx to recognize KetAtomTuple
+        KetAtomTuple,
     )
-    from pairinteraction._wrapped.ket.ket_pair import KetAtomTuple
-    from pairinteraction._wrapped.system.system_atom import SystemAtom
-    from pairinteraction._wrapped.system.system_pair import SystemPair
     from pairinteraction.units import ArrayLike, NDArray, PintArray, PintFloat
 
 
@@ -49,8 +46,7 @@ class EffectiveSystemPair:
     as well as the angle and distance between the two atoms like in the `SystemPair` class.
 
     Examples:
-        >>> import pairinteraction.real as pi
-        >>> from pairinteraction.perturbative import EffectiveSystemPair
+        >>> import pairinteraction as pi
         >>> ket_atoms = {
         ...     "+": pi.KetAtom("Rb", n=59, l=0, j=0.5, m=0.5),
         ...     "0": pi.KetAtom("Rb", n=58, l=1, j=1.5, m=1.5),
@@ -61,7 +57,7 @@ class EffectiveSystemPair:
         ...     (ket_atoms["0"], ket_atoms["0"]),
         ...     (ket_atoms["-"], ket_atoms["+"]),
         ... ]
-        >>> eff_system = EffectiveSystemPair(ket_tuples)
+        >>> eff_system = pi.EffectiveSystemPair(ket_tuples)
         >>> eff_system = eff_system.set_distance(10, angle_degree=45, unit="micrometer")
         >>> eff_h = eff_system.get_effective_hamiltonian(unit="MHz")
         >>> eff_h -= np.eye(3) * eff_system.get_pair_energies("MHz")[1]
@@ -72,7 +68,12 @@ class EffectiveSystemPair:
 
     """
 
-    def __init__(self, ket_tuples: Sequence["KetAtomTuple"]) -> None:
+    _basis_atom_class = BasisAtom
+    _basis_pair_class = BasisPair
+    _system_atom_class = SystemAtom
+    _system_pair_class = SystemPair
+
+    def __init__(self, ket_tuples: Sequence[KetAtomTuple]) -> None:
         if not all(len(ket_tuple) == 2 for ket_tuple in ket_tuples):
             raise ValueError("All ket tuples must contain exactly two kets")
         for i in range(2):
@@ -84,27 +85,27 @@ class EffectiveSystemPair:
         self._perturbation_order = 2
 
         # BasisAtom and SystemAtom attributes
-        self._delta_n: Optional[int] = None
-        self._delta_l: Optional[int] = None
-        self._delta_m: Optional[int] = None
-        self._electric_field: Optional[PintArray] = None
-        self._magnetic_field: Optional[PintArray] = None
-        self._diamagnetism_enabled: Optional[bool] = None
+        self._delta_n: int | None = None
+        self._delta_l: int | None = None
+        self._delta_m: int | None = None
+        self._electric_field: PintArray | None = None
+        self._magnetic_field: PintArray | None = None
+        self._diamagnetism_enabled: bool | None = None
 
         # BasisPair and SystemPair attributes
-        self._minimum_number_of_ket_pairs: Optional[int] = None
-        self._maximum_number_of_ket_pairs: Optional[int] = None
-        self._interaction_order: Optional[int] = None
-        self._distance_vector: Optional[PintArray] = None
+        self._minimum_number_of_ket_pairs: int | None = None
+        self._maximum_number_of_ket_pairs: int | None = None
+        self._interaction_order: int | None = None
+        self._distance_vector: PintArray | None = None
 
         # misc
-        self._eff_h_dict_au: Optional[dict[int, NDArray]] = None
-        self._eff_vecs: Optional[csr_matrix] = None
+        self._eff_h_dict_au: dict[int, NDArray] | None = None
+        self._eff_vecs: csr_matrix | None = None
 
         # misc user set stuff
         self._user_set_parts: set[BasisSystemLiteral] = set()
 
-    def copy(self: "Self") -> "Self":
+    def copy(self: Self) -> Self:
         """Create a copy of the EffectiveSystemPair object (before it has been created)."""
         if self._is_created("basis_atoms"):
             raise RuntimeError(
@@ -113,11 +114,11 @@ class EffectiveSystemPair:
             )
         return copy.copy(self)
 
-    def _is_created(self: "Self", what: BasisSystemLiteral = "basis_atoms") -> bool:
+    def _is_created(self: Self, what: BasisSystemLiteral = "basis_atoms") -> bool:
         """Check if some part of the effective Hamiltonian has already been created."""
         return hasattr(self, "_" + what)
 
-    def _ensure_not_created(self: "Self", what: BasisSystemLiteral = "basis_atoms") -> None:
+    def _ensure_not_created(self: Self, what: BasisSystemLiteral = "basis_atoms") -> None:
         """Ensure that some part of the effective Hamiltonian has not been created yet."""
         if self._is_created(what):
             raise RuntimeError(
@@ -125,7 +126,7 @@ class EffectiveSystemPair:
                 f"Please set all parameters before {what} before accessing it (or creating the effective Hamiltonian)."
             )
 
-    def _delete_created(self: "Self", what: BasisSystemLiteral = "basis_atoms") -> None:
+    def _delete_created(self: Self, what: BasisSystemLiteral = "basis_atoms") -> None:
         """Delete the created part of the effective Hamiltonian.
 
         Args:
@@ -149,16 +150,9 @@ class EffectiveSystemPair:
             if part == what:
                 break
 
-    @property
-    def _need_complex(self) -> bool:
-        """Check if the effective system pair needs complex datatype."""
-        if self._is_created("basis_atoms"):
-            return isinstance(self.basis_atoms[0], pi_complex.BasisAtom)
-        return self.electric_field[1] != 0 or self.magnetic_field[1] != 0  # type: ignore [index, no-any-return]
-
     # # # Perturbation methods and attributes # # #
     @property
-    def ket_tuples(self) -> list["KetAtomTuple"]:
+    def ket_tuples(self) -> list[KetAtomTuple]:
         """The tuples of kets, which form the model space for the effective Hamiltonian."""
         return self._ket_tuples  # type: ignore [return-value]
 
@@ -167,7 +161,7 @@ class EffectiveSystemPair:
         """The perturbation order for the effective Hamiltonian."""
         return self._perturbation_order
 
-    def set_perturbation_order(self: "Self", order: int) -> "Self":
+    def set_perturbation_order(self: Self, order: int) -> Self:
         """Set the perturbation order for the effective Hamiltonian."""
         self._delete_created()
         self._perturbation_order = order
@@ -175,33 +169,33 @@ class EffectiveSystemPair:
 
     # # # BasisAtom methods and attributes # # #
     @property
-    def basis_atoms(self) -> tuple["BasisAtom[Any]", "BasisAtom[Any]"]:
+    def basis_atoms(self) -> tuple[BasisAtom, BasisAtom]:
         """The basis objects for the single-atom systems."""
         if not self._is_created("basis_atoms"):
             self._create_basis_atoms()
         return self._basis_atoms  # type: ignore [return-value]
 
     @basis_atoms.setter
-    def basis_atoms(self, basis_atoms: tuple["BasisAtom[Any]", "BasisAtom[Any]"]) -> None:
+    def basis_atoms(self, basis_atoms: tuple[BasisAtom, BasisAtom]) -> None:
         self._ensure_not_created()
         if self._delta_n is not None or self._delta_l is not None or self._delta_m is not None:
             logger.warning("Setting basis_atoms will overwrite parameters defined for basis_atoms.")
         self._user_set_parts.add("basis_atoms")
         self._basis_atoms = tuple(basis_atoms)
 
-    def set_delta_n(self: "Self", delta_n: int) -> "Self":
+    def set_delta_n(self: Self, delta_n: int) -> Self:
         """Set the delta_n value for single-atom basis."""
         self._delete_created()
         self._delta_n = delta_n
         return self
 
-    def set_delta_l(self: "Self", delta_l: int) -> "Self":
+    def set_delta_l(self: Self, delta_l: int) -> Self:
         """Set the delta_l value for single-atom basis."""
         self._delete_created()
         self._delta_l = delta_l
         return self
 
-    def set_delta_m(self: "Self", delta_m: int) -> "Self":
+    def set_delta_m(self: Self, delta_m: int) -> Self:
         """Set the delta_m value for single-atom basis."""
         self._delete_created()
         self._delta_m = delta_m
@@ -216,7 +210,8 @@ class EffectiveSystemPair:
         if delta_m is None and self._delta_l is None and self._are_fields_along_z:
             delta_m = self.perturbation_order * (self.interaction_order - 2)
 
-        basis_atoms: list[BasisAtom[Any]] = []
+        basis_atoms: list[BasisAtom] = []
+        use_real = isinstance(self, EffectiveSystemPairReal)
         for i in range(2):
             kets = [ket_tuple[i] for ket_tuple in self.ket_tuples]
             nlfm = np.transpose([[ket.n, ket.l, ket.f, ket.m] for ket in kets])
@@ -226,23 +221,21 @@ class EffectiveSystemPair:
                 # for mqdt we increase the default delta_l by 1 to take into account the variance ...
                 l_range = (np.min(nlfm[1]) - delta_l - 1, np.max(nlfm[1]) + delta_l + 1)
             m_range = (np.min(nlfm[3]) - delta_m, np.max(nlfm[3]) + delta_m) if delta_m is not None else None
-            basis = get_basis_atom_with_cache(
-                kets[0].species, n_range, l_range, m_range, need_complex=self._need_complex
-            )
+            basis = get_basis_atom_with_cache(kets[0].species, n_range, l_range, m_range, use_real=use_real)
             basis_atoms.append(basis)
 
         self._basis_atoms = tuple(basis_atoms)
 
     # # # SystemAtom methods and attributes # # #
     @property
-    def system_atoms(self) -> tuple["SystemAtom[Any]", "SystemAtom[Any]"]:
+    def system_atoms(self) -> tuple[SystemAtom, SystemAtom]:
         """The system objects for the single-atom systems."""
         if not self._is_created("system_atoms"):
             self._create_system_atoms()
-        return self._system_atoms  # type: ignore [return-value]
+        return self._system_atoms
 
     @system_atoms.setter
-    def system_atoms(self, system_atoms: tuple["SystemAtom[Any]", "SystemAtom[Any]"]) -> None:
+    def system_atoms(self, system_atoms: tuple[SystemAtom, SystemAtom]) -> None:
         self._ensure_not_created()
         if (
             self._electric_field is not None
@@ -251,11 +244,11 @@ class EffectiveSystemPair:
         ):
             logger.warning("Setting system_atoms will overwrite parameters defined for system_atoms.")
         self._user_set_parts.add("system_atoms")
-        self._system_atoms = tuple(system_atoms)
-        self.basis_atoms = tuple(system.basis for system in system_atoms)
+        self._system_atoms: tuple[SystemAtom, SystemAtom] = tuple(system_atoms)  # type: ignore [assignment]
+        self.basis_atoms = tuple(system.basis for system in system_atoms)  # type: ignore [assignment]
 
     @property
-    def electric_field(self) -> "PintArray":
+    def electric_field(self) -> PintArray:
         """The electric field for the single-atom systems."""
         if self._electric_field is None:
             self.set_electric_field([0, 0, 0], "V/cm")
@@ -263,10 +256,10 @@ class EffectiveSystemPair:
         return self._electric_field
 
     def set_electric_field(
-        self: "Self",
-        electric_field: Union["PintArray", "ArrayLike"],
-        unit: Optional[str] = None,
-    ) -> "Self":
+        self: Self,
+        electric_field: PintArray | ArrayLike,
+        unit: str | None = None,
+    ) -> Self:
         """Set the electric field for the single-atom systems.
 
         Args:
@@ -280,7 +273,7 @@ class EffectiveSystemPair:
         return self
 
     @property
-    def magnetic_field(self) -> "PintArray":
+    def magnetic_field(self) -> PintArray:
         """The magnetic field for the single-atom systems."""
         if self._magnetic_field is None:
             self.set_magnetic_field([0, 0, 0], "gauss")
@@ -288,10 +281,10 @@ class EffectiveSystemPair:
         return self._magnetic_field
 
     def set_magnetic_field(
-        self: "Self",
-        magnetic_field: Union["PintArray", "ArrayLike"],
-        unit: Optional[str] = None,
-    ) -> "Self":
+        self: Self,
+        magnetic_field: PintArray | ArrayLike,
+        unit: str | None = None,
+    ) -> Self:
         """Set the magnetic field for the single-atom systems.
 
         Args:
@@ -316,7 +309,7 @@ class EffectiveSystemPair:
             assert self._diamagnetism_enabled is not None
         return self._diamagnetism_enabled
 
-    def set_diamagnetism_enabled(self: "Self", enable: bool = True) -> "Self":
+    def set_diamagnetism_enabled(self: Self, enable: bool = True) -> Self:
         """Enable or disable diamagnetism for the system.
 
         Args:
@@ -328,25 +321,24 @@ class EffectiveSystemPair:
         return self
 
     def _create_system_atoms(self) -> None:
-        pi = pi_complex if self._need_complex else pi_real
-        system_atoms: list[SystemAtom[Any]] = []
+        system_atoms: list[SystemAtom] = []
         for basis_atom in self.basis_atoms:
-            system = pi.SystemAtom(basis_atom)
+            system = self._system_atom_class(basis_atom)
             system.set_diamagnetism_enabled(self.diamagnetism_enabled)
             system.set_electric_field(self.electric_field)
             system.set_magnetic_field(self.magnetic_field)
             system_atoms.append(system)
-        pi.diagonalize(system_atoms)
+        diagonalize(system_atoms)
 
-        self._system_atoms = tuple(system_atoms)
+        self._system_atoms = tuple(system_atoms)  # type: ignore [assignment]
 
     @overload
-    def get_pair_energies(self, unit: None = None) -> list["PintFloat"]: ...
+    def get_pair_energies(self, unit: None = None) -> list[PintFloat]: ...
 
     @overload
     def get_pair_energies(self, unit: str) -> list[float]: ...
 
-    def get_pair_energies(self, unit: Optional[str] = None) -> Union[list[float], list["PintFloat"]]:
+    def get_pair_energies(self, unit: str | None = None) -> list[float] | list[PintFloat]:
         """Get the pair energies of the ket tuples for infinite distance (i.e. no interaction).
 
         Args:
@@ -364,14 +356,14 @@ class EffectiveSystemPair:
 
     # # # BasisPair methods and attributes # # #
     @property
-    def basis_pair(self) -> "BasisPair[Any, Any]":
+    def basis_pair(self) -> BasisPair:
         """The basis pair object for the pair system."""
         if not self._is_created("basis_pair"):
             self._create_basis_pair()
         return self._basis_pair
 
     @basis_pair.setter
-    def basis_pair(self, basis_pair: "BasisPair[Any, Any]") -> None:
+    def basis_pair(self, basis_pair: BasisPair) -> None:
         self._ensure_not_created()
         if self._minimum_number_of_ket_pairs is not None or self._maximum_number_of_ket_pairs is not None:
             logger.warning("Setting basis_pair will overwrite parameters defined for basis_pair.")
@@ -379,7 +371,7 @@ class EffectiveSystemPair:
         self._basis_pair = basis_pair
         self.system_atoms = basis_pair.system_atoms
 
-    def set_minimum_number_of_ket_pairs(self: "Self", number_of_kets: int) -> "Self":
+    def set_minimum_number_of_ket_pairs(self: Self, number_of_kets: int) -> Self:
         """Set the minimum number of ket pairs in the basis pair.
 
         Args:
@@ -392,7 +384,7 @@ class EffectiveSystemPair:
         self._minimum_number_of_ket_pairs = number_of_kets
         return self
 
-    def set_maximum_number_of_ket_pairs(self: "Self", number_of_kets: int) -> "Self":
+    def set_maximum_number_of_ket_pairs(self: Self, number_of_kets: int) -> Self:
         """Set the maximum number of ket pairs in the basis pair.
 
         Args:
@@ -406,10 +398,10 @@ class EffectiveSystemPair:
         return self
 
     def _create_basis_pair(self) -> None:
-        max_number_of_kets: Optional[float] = self._maximum_number_of_ket_pairs
+        max_number_of_kets: float | None = self._maximum_number_of_ket_pairs
         if max_number_of_kets is None:
             max_number_of_kets = np.inf
-        min_number_of_kets: Optional[float] = self._minimum_number_of_ket_pairs
+        min_number_of_kets: float | None = self._minimum_number_of_ket_pairs
         if min_number_of_kets is None:
             min_number_of_kets = min(2_000, max_number_of_kets)
 
@@ -423,9 +415,8 @@ class EffectiveSystemPair:
 
         # make a bisect search to get a sensible basis size between:
         # min_number_of_kets and max_number_of_kets
-        pi = pi_complex if self._need_complex else pi_real
         while True:
-            basis_pair = pi.BasisPair(
+            basis_pair = self._basis_pair_class(
                 self.system_atoms,
                 energy=(min_energy_au - delta_energy_au, max_energy_au + delta_energy_au),
                 energy_unit="hartree",
@@ -448,14 +439,14 @@ class EffectiveSystemPair:
 
     # # # SystemPair methods and attributes # # #
     @property
-    def system_pair(self) -> "SystemPair[Any]":
+    def system_pair(self) -> SystemPair:
         """The system pair object for the pair system."""
         if not self._is_created("system_pair"):
             self._create_system_pair()
         return self._system_pair
 
     @system_pair.setter
-    def system_pair(self, system_pair: "SystemPair[Any]") -> None:
+    def system_pair(self, system_pair: SystemPair) -> None:
         self._ensure_not_created()
         if self._interaction_order is not None or self._distance_vector is not None:
             logger.warning("Setting system_pair will overwrite parameters defined for system_pair.")
@@ -470,7 +461,7 @@ class EffectiveSystemPair:
             self.set_interaction_order(3)
         return self._interaction_order  # type: ignore [return-value]
 
-    def set_interaction_order(self: "Self", order: int) -> "Self":
+    def set_interaction_order(self: Self, order: int) -> Self:
         """Set the interaction order of the pair system.
 
         Args:
@@ -483,18 +474,18 @@ class EffectiveSystemPair:
         return self
 
     @property
-    def distance_vector(self) -> "PintArray":
+    def distance_vector(self) -> PintArray:
         """The distance vector between the atoms in the pair system."""
         if self._distance_vector is None:
             self.set_distance_vector([0, 0, np.inf], "micrometer")
         return self._distance_vector  # type: ignore [return-value]
 
     def set_distance(
-        self: "Self",
-        distance: Union[float, "PintFloat"],
+        self: Self,
+        distance: float | PintFloat,
         angle_degree: float = 0,
-        unit: Optional[str] = None,
-    ) -> "Self":
+        unit: str | None = None,
+    ) -> Self:
         """Set the distance between the atoms using the specified distance and angle.
 
         Args:
@@ -510,10 +501,10 @@ class EffectiveSystemPair:
         return self.set_distance_vector(distance_vector, unit)
 
     def set_distance_vector(
-        self: "Self",
-        distance: Union["ArrayLike", "PintArray"],
-        unit: Optional[str] = None,
-    ) -> "Self":
+        self: Self,
+        distance: ArrayLike | PintArray,
+        unit: str | None = None,
+    ) -> Self:
         """Set the distance vector between the atoms.
 
         Args:
@@ -527,10 +518,10 @@ class EffectiveSystemPair:
         return self
 
     def set_angle(
-        self: "Self",
+        self: Self,
         angle: float = 0,
         unit: Literal["degree", "radian"] = "degree",
-    ) -> "Self":
+    ) -> Self:
         """Set the angle between the atoms in degrees.
 
         Args:
@@ -547,22 +538,21 @@ class EffectiveSystemPair:
         return self.set_distance(distance_mum, angle, "micrometer")
 
     def _create_system_pair(self) -> None:
-        pi = pi_complex if self._need_complex else pi_real
-        system_pair = pi.SystemPair(self.basis_pair)
+        system_pair = self._system_pair_class(self.basis_pair)
         system_pair.set_distance_vector(self.distance_vector)
         system_pair.set_interaction_order(self.interaction_order)
         self._system_pair = system_pair
 
     # # # Effective Hamiltonian methods and attributes # # #
     @overload
-    def get_effective_hamiltonian(self, return_order: Optional[int] = None, unit: None = None) -> "PintArray": ...
+    def get_effective_hamiltonian(self, return_order: int | None = None, unit: None = None) -> PintArray: ...
 
     @overload
-    def get_effective_hamiltonian(self, return_order: Optional[int] = None, *, unit: str) -> "NDArray": ...
+    def get_effective_hamiltonian(self, return_order: int | None = None, *, unit: str) -> NDArray: ...
 
     def get_effective_hamiltonian(
-        self, return_order: Optional[int] = None, unit: Optional[str] = None
-    ) -> Union["NDArray", "PintArray"]:
+        self, return_order: int | None = None, unit: str | None = None
+    ) -> NDArray | PintArray:
         """Get the effective Hamiltonian of the pair system.
 
         Args:
@@ -588,9 +578,9 @@ class EffectiveSystemPair:
                 f"The perturbation order {return_order} is not available in the effective Hamiltonian "
                 f"with the specified perturbation_order {self.perturbation_order}."
             )
-        return QuantityArray.convert_au_to_user(h_eff_au, "energy", unit)
+        return QuantityArray.convert_au_to_user(np.real_if_close(h_eff_au), "energy", unit)
 
-    def get_effective_basisvectors(self) -> "csr_matrix":
+    def get_effective_basisvectors(self) -> csr_matrix:
         """Get the eigenvectors of the perturbative Hamiltonian."""
         if len(self.model_inds) > 1 and self.perturbation_order > 2:
             logger.warning("For more than one state and perturbation_order > 2 the effective basis might be wrong.")
@@ -599,7 +589,7 @@ class EffectiveSystemPair:
             assert self._eff_vecs is not None
         return self._eff_vecs
 
-    def get_effective_basis(self) -> "BasisPair[Any, Any]":
+    def get_effective_basis(self) -> BasisPair:
         """Get the effective basis of the pair system."""
         raise NotImplementedError("The get effective basis method is not implemented yet.")
 
@@ -682,10 +672,18 @@ class EffectiveSystemPair:
                     logger.error("  - %s with overlap %.3e", self.system_pair.basis.kets[index], admixture)
 
 
+class EffectiveSystemPairReal(EffectiveSystemPair):
+    _basis_atom_class = BasisAtomReal
+    _basis_pair_class = BasisPairReal
+    _system_atom_class = SystemAtomReal
+    _system_pair_class = SystemPairReal
+
+
 @lru_cache(maxsize=20)
 def get_basis_atom_with_cache(
-    species: str, n: tuple[int, int], l: tuple[int, int], m: tuple[int, int], *, need_complex: bool
-) -> "BasisAtom[Any]":
+    species: str, n: tuple[int, int], l: tuple[int, int], m: tuple[int, int], *, use_real: bool
+) -> BasisAtom:
     """Get a BasisAtom object potentially by using a cache to avoid recomputing it."""
-    pi = pi_complex if need_complex else pi_real
-    return pi.BasisAtom(species, n=n, l=l, m=m)  # type: ignore [no-any-return]
+    if use_real:
+        return BasisAtomReal(species, n=n, l=l, m=m)
+    return BasisAtom(species, n=n, l=l, m=m)

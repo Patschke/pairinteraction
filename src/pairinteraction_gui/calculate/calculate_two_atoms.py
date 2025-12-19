@@ -1,16 +1,15 @@
-# SPDX-FileCopyrightText: 2025 Pairinteraction Developers
+# SPDX-FileCopyrightText: 2025 PairInteraction Developers
 # SPDX-License-Identifier: LGPL-3.0-or-later
+from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 from attr import dataclass
 
-from pairinteraction import (
-    complex as pi_complex,
-    real as pi_real,
-)
+import pairinteraction as pi_complex
+import pairinteraction.real as pi_real
 from pairinteraction_gui.calculate.calculate_base import Parameters, Results
 from pairinteraction_gui.worker import run_in_other_process
 
@@ -27,11 +26,11 @@ class ParametersTwoAtoms(Parameters["TwoAtomsPage"]):
     """Parameters for the two atoms calculation."""
 
     pair_delta_energy: float = np.inf
-    pair_m_range: Optional[tuple[float, float]] = None
+    pair_m_range: tuple[float, float] | None = None
     order: int = 3
 
     @classmethod
-    def from_page(cls, page: "TwoAtomsPage") -> "Self":
+    def from_page(cls, page: TwoAtomsPage) -> Self:
         obj = super().from_page(page)
         obj.pair_delta_energy = page.basis_config.pair_delta_energy.value(np.inf)
         obj.pair_m_range = (
@@ -52,14 +51,14 @@ class ParametersTwoAtoms(Parameters["TwoAtomsPage"]):
 
 @dataclass
 class ResultsTwoAtoms(Results):
-    basis_0_label: Optional[str] = None
+    basis_0_label: str | None = None
 
 
 @run_in_other_process
 def calculate_two_atoms(parameters: ParametersTwoAtoms) -> ResultsTwoAtoms:
     """Calculate the energy plot for two atoms.
 
-    This means, given a Parameters object, do the pairinteraction calculations and return an ResultsTwoAtoms object.
+    This means, given a Parameters object, do the PairInteraction calculations and return an ResultsTwoAtoms object.
     """
     return _calculate_two_atoms(parameters)
 
@@ -76,7 +75,7 @@ def _calculate_two_atoms(parameters: ParametersTwoAtoms) -> ResultsTwoAtoms:
 
     fields = {k: v for k, v in parameters.ranges.items() if k in ["Ex", "Ey", "Ez", "Bx", "By", "Bz"]}
 
-    basis_pair_list: Union[list[pi_real.BasisPair], list[pi_complex.BasisPair]]
+    basis_pair_list: list[pi_real.BasisPair] | list[pi_complex.BasisPair]
     if all(v[0] == v[-1] for v in fields.values()):
         # If all fields are constant, we can only have to diagonalize one SystemAtom per atom
         # and can construct one BasisPair, which we can use for all steps
@@ -84,6 +83,7 @@ def _calculate_two_atoms(parameters: ParametersTwoAtoms) -> ResultsTwoAtoms:
             pi.SystemAtom(bases[i])
             .set_electric_field(parameters.get_efield(0), unit="V/cm")
             .set_magnetic_field(parameters.get_bfield(0), unit="G")
+            .set_diamagnetism_enabled(parameters.diamagnetism_enabled)
             for i in range(n_atoms)
         )
         logger.debug("Diagonalizing SystemAtoms...")
@@ -108,6 +108,7 @@ def _calculate_two_atoms(parameters: ParametersTwoAtoms) -> ResultsTwoAtoms:
                 pi.SystemAtom(bases[i])
                 .set_electric_field(parameters.get_efield(step), unit="V/cm")
                 .set_magnetic_field(parameters.get_bfield(step), unit="G")
+                .set_diamagnetism_enabled(parameters.diamagnetism_enabled)
                 for i in range(n_atoms)
             )
             systems_list.append(systems)
@@ -130,7 +131,7 @@ def _calculate_two_atoms(parameters: ParametersTwoAtoms) -> ResultsTwoAtoms:
             basis_pair_list.append(basis_pair)
         ket_pair_energy_0 = sum(systems_list[-1][i].get_corresponding_energy(kets[i], "GHz") for i in range(n_atoms))
 
-    system_pair_list: Union[list[pi_real.SystemPair], list[pi_complex.SystemPair]] = []
+    system_pair_list: list[pi_real.SystemPair] | list[pi_complex.SystemPair] = []
     for step in range(parameters.steps):
         system = pi.SystemPair(basis_pair_list[step])
         system.set_interaction_order(parameters.order)
@@ -146,7 +147,7 @@ def _calculate_two_atoms(parameters: ParametersTwoAtoms) -> ResultsTwoAtoms:
     pi.diagonalize(
         system_pair_list,
         **parameters.diagonalize_kwargs,
-        **parameters.get_diagonalize_energy_range(ket_pair_energy_0),
+        **parameters.get_diagonalize_energy_range_kwargs(ket_pair_energy_0),
     )
     logger.debug("Done diagonalizing SystemPairs.")
 

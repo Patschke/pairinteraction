@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 Pairinteraction Developers
+// SPDX-FileCopyrightText: 2024 PairInteraction Developers
 // SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "pairinteraction/basis/Basis.hpp"
@@ -49,7 +49,7 @@ void Basis<Derived>::perform_blocks_checks(
 
     // Throw a meaningful error if getting the blocks by energy is requested as this might be a
     // common mistake
-    if (unique_labels.count(TransformationType::SORT_BY_ENERGY) > 0) {
+    if (unique_labels.contains(TransformationType::SORT_BY_ENERGY)) {
         throw std::invalid_argument("States do not store the energy and thus no energy blocks can "
                                     "be obtained. Use an energy operator instead.");
     }
@@ -155,7 +155,7 @@ void Basis<Derived>::set_coefficients(
 
 template <typename Derived>
 int Basis<Derived>::get_ket_index_from_ket(std::shared_ptr<const ket_t> ket) const {
-    if (ket_to_ket_index.count(ket) == 0) {
+    if (!ket_to_ket_index.contains(ket)) {
         return -1;
     }
     return ket_to_ket_index.at(ket);
@@ -244,12 +244,16 @@ std::shared_ptr<const Derived> Basis<Derived>::get_state(size_t state_index) con
 
     std::fill(restricted->ket_index_to_state_index.begin(),
               restricted->ket_index_to_state_index.end(), std::numeric_limits<int>::max());
-    restricted->ket_index_to_state_index[state_index_to_ket_index[state_index]] = 0;
+
+    size_t ket_index = state_index_to_ket_index[state_index];
+    restricted->state_index_to_ket_index = {ket_index};
+    if (ket_index != std::numeric_limits<int>::max()) {
+        restricted->ket_index_to_state_index[ket_index] = 0;
+    }
 
     restricted->state_index_to_quantum_number_f = {state_index_to_quantum_number_f[state_index]};
     restricted->state_index_to_quantum_number_m = {state_index_to_quantum_number_m[state_index]};
     restricted->state_index_to_parity = {state_index_to_parity[state_index]};
-    restricted->state_index_to_ket_index = {state_index_to_ket_index[state_index]};
 
     restricted->_has_quantum_number_f =
         restricted->state_index_to_quantum_number_f[0] != std::numeric_limits<real_t>::max();
@@ -305,7 +309,7 @@ size_t Basis<Derived>::get_corresponding_state_index(std::shared_ptr<const ket_t
 
 template <typename Derived>
 size_t Basis<Derived>::get_corresponding_ket_index(size_t state_index) const {
-    int ket_index = state_index_to_ket_index.at(state_index);
+    size_t ket_index = state_index_to_ket_index.at(state_index);
     if (ket_index == std::numeric_limits<int>::max()) {
         throw std::runtime_error("The state does not belong to a ket in a well-defined way.");
     }
@@ -570,28 +574,28 @@ void Basis<Derived>::get_indices_of_blocks_without_checks(
 
     for (int i = 0; i < coefficients.matrix.cols(); ++i) {
         for (auto label : unique_labels) {
-            if (label == TransformationType::SORT_BY_QUANTUM_NUMBER_F) {
-                if (std::abs(state_index_to_quantum_number_f[i] - last_quantum_number_f) >
+            if (label == TransformationType::SORT_BY_QUANTUM_NUMBER_F &&
+                std::abs(state_index_to_quantum_number_f[i] - last_quantum_number_f) >
                     numerical_precision) {
-                    blocks_creator.add(i);
-                    break;
-                }
-            } else if (label == TransformationType::SORT_BY_QUANTUM_NUMBER_M) {
-                if (std::abs(state_index_to_quantum_number_m[i] - last_quantum_number_m) >
+                blocks_creator.add(i);
+                break;
+            }
+            if (label == TransformationType::SORT_BY_QUANTUM_NUMBER_M &&
+                std::abs(state_index_to_quantum_number_m[i] - last_quantum_number_m) >
                     numerical_precision) {
-                    blocks_creator.add(i);
-                    break;
-                }
-            } else if (label == TransformationType::SORT_BY_PARITY) {
-                if (state_index_to_parity[i] != last_parity) {
-                    blocks_creator.add(i);
-                    break;
-                }
-            } else if (label == TransformationType::SORT_BY_KET) {
-                if (state_index_to_ket_index[i] != last_ket) {
-                    blocks_creator.add(i);
-                    break;
-                }
+                blocks_creator.add(i);
+                break;
+            }
+            if (label == TransformationType::SORT_BY_PARITY &&
+                state_index_to_parity[i] != last_parity) {
+                blocks_creator.add(i);
+                break;
+            }
+            if (label == TransformationType::SORT_BY_KET &&
+                state_index_to_ket_index[i] != last_ket &&
+                last_ket != std::numeric_limits<int>::max()) {
+                blocks_creator.add(i);
+                break;
             }
         }
         last_quantum_number_f = state_index_to_quantum_number_f[i];
@@ -626,10 +630,12 @@ std::shared_ptr<const Derived> Basis<Derived>::transformed(const Sorting &transf
             state_index_to_quantum_number_m[transformation.matrix.indices()[i]];
         transformed->state_index_to_parity[i] =
             state_index_to_parity[transformation.matrix.indices()[i]];
-        transformed->state_index_to_ket_index[i] =
-            state_index_to_ket_index[transformation.matrix.indices()[i]];
-        transformed->ket_index_to_state_index
-            [state_index_to_ket_index[transformation.matrix.indices()[i]]] = i;
+
+        size_t ket_index = state_index_to_ket_index[transformation.matrix.indices()[i]];
+        transformed->state_index_to_ket_index[i] = ket_index;
+        if (ket_index != std::numeric_limits<int>::max()) {
+            transformed->ket_index_to_state_index[ket_index] = i;
+        }
     }
 
     return transformed;
